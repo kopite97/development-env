@@ -1,0 +1,36 @@
+.quick-links {
+  padding: 0 20px 10px;
+}
+.quick-links a {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 12px 0;
+}
+.quick-links a + a {
+  border-top: 1px solid #f1f3f6;
+}
+.quick-links a > svg {
+  margin-left: auto;
+  color: #afb5bf;
+}
+.link-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: #f4f5f8;
+  color: #7c8596;
+  border-radius: 8px;
+}
+.quick-links strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 550;
+}
+.quick-links small {
+  display: block;
+  font-size: 9px;
+  color: #9ba1ac;
+  margin-top: 4px;
+}

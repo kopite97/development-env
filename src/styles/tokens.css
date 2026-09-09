@@ -1,0 +1,32 @@
+:root {
+  font-family:
+    'Pretendard',
+    'Segoe UI',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Malgun Gothic',
+    sans-serif;
+  color: #303541;
+  background: #f6f7f9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --bg: #f6f7f9;
+  --surface: #fff;
+  --surface-subtle: #f9fafb;
+  --text: #303541;
+  --muted: #7d8594;
+  --border: #e9ecf1;
+  --accent: #7372c1;
+  --accent-hover: #6160ac;
+  --accent-soft: #efeffa;
+  --green: #4a957a;
+  --green-soft: #eaf5ef;
+  --blue: #648bba;
+  --blue-soft: #edf3fb;
+  --amber: #b28d50;
+  --amber-soft: #fbf4e8;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 3px 14px #27345403;
+  --sidebar: 224px;
+}

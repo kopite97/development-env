@@ -1,0 +1,61 @@
+.journal-form {
+  display: grid;
+  gap: 16px;
+}
+.journal-list {
+  padding: 0 21px 7px;
+}
+.journal-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  text-align: left;
+  width: 100%;
+  padding: 14px 0;
+}
+.journal-row + .journal-row {
+  border-top: 1px solid var(--border);
+}
+.journal-date {
+  font-size: 10px;
+  color: #999eac;
+  white-space: nowrap;
+}
+.journal-row strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+}
+.journal-row small {
+  display: block;
+  color: #a1a7b1;
+  font-size: 9px;
+  margin-top: 6px;
+}
+.journal-row > svg {
+  margin-left: auto;
+  color: #afb5bf;
+}
+.document-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  padding: 21px 0;
+  border-bottom: 1px solid var(--border);
+  color: #7d819b;
+}
+.document-row strong {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+}
+.document-row small {
+  display: block;
+  font-size: 11px;
+  margin-top: 6px;
+}
+.document-row > svg:last-child {
+  margin-left: auto;
+}

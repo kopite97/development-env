@@ -1,0 +1,55 @@
+.service-summary {
+  margin: 0 20px 3px;
+  padding: 10px 12px;
+  background: #f0f7f3;
+  border-radius: 7px;
+  color: #67947d;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.service-summary > span:last-child {
+  margin-left: auto;
+  font-size: 9px;
+  color: #91ae9e;
+}
+.service-row {
+  margin: 0 20px;
+  padding: 14px 0 12px;
+  width: calc(100% - 40px);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  text-align: left;
+}
+.service-row + .service-row {
+  border-top: 1px solid var(--border);
+}
+.service-row > svg {
+  color: #939aab;
+}
+.service-row strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 550;
+}
+.service-row small {
+  display: block;
+  font-size: 9px;
+  color: #969eab;
+  margin-top: 4px;
+}
+.service-version {
+  width: 100%;
+  padding-left: 27px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  color: #9da3ad;
+}
+.service-version span {
+  margin-left: auto;
+}

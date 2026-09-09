@@ -1,0 +1,284 @@
+@media (min-width: 1600px) {
+  main {
+    padding-top: 43px;
+  }
+  .widget-header {
+    padding-top: 24px;
+  }
+  .kanban {
+    padding-bottom: 24px;
+  }
+  .task {
+    padding: 15px 12px;
+  }
+  .task h4 {
+    font-size: 12px;
+  }
+  .task > small {
+    font-size: 10px;
+  }
+  .project-row {
+    padding: 18px 0;
+  }
+  .service-row {
+    padding-top: 18px;
+    padding-bottom: 16px;
+  }
+}
+@media (max-width: 1150px) {
+  :root {
+    --sidebar: 196px;
+  }
+  .sidebar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  main {
+    padding: 28px 24px 0;
+  }
+  .topbar {
+    padding: 0 24px;
+  }
+  .dashboard-grid {
+    gap: 14px;
+  }
+  .widget-header {
+    padding: 17px 15px;
+  }
+  .widget-header h2 {
+    font-size: 12px;
+  }
+  .widget-header .badge {
+    font-size: 8px;
+  }
+  .kanban {
+    gap: 6px;
+    padding: 0 10px 12px;
+  }
+  .kanban-column {
+    padding: 8px 5px;
+  }
+  .task {
+    padding: 9px 7px;
+  }
+  .stats {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  .stats span {
+    font-size: 9px;
+  }
+  .project-progress {
+    width: 60px;
+  }
+  .project-list {
+    margin: 0 15px;
+  }
+  .welcome-strip {
+    padding: 16px;
+  }
+  .heading-actions .button {
+    padding: 8px 10px;
+  }
+  .page-heading {
+    gap: 10px;
+  }
+  .page-heading h1 {
+    font-size: 24px;
+  }
+  .service-row {
+    gap: 6px;
+  }
+  .service-row strong {
+    font-size: 10px;
+  }
+  .service-summary {
+    font-size: 9px;
+  }
+}
+@media (max-width: 950px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .widget-medium,
+  .widget-wide {
+    grid-column: span 2;
+  }
+  .widget-small {
+    grid-column: span 1;
+  }
+  .page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .heading-actions {
+    margin-top: 5px;
+  }
+  .welcome-strip div > span {
+    line-height: 1.7;
+  }
+  .edit-banner {
+    flex-wrap: wrap;
+  }
+  .edit-banner > span {
+    flex-basis: 80%;
+  }
+}
+@media (max-width: 680px) {
+  :root {
+    --sidebar: 224px;
+  }
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+    visibility: hidden;
+  }
+  .sidebar-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+  .main-shell {
+    margin-left: 0;
+  }
+  .mobile-menu {
+    display: inline-flex !important;
+  }
+  .nav-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #27233e55;
+    z-index: 19;
+  }
+  .topbar {
+    height: 58px;
+    padding: 0 15px;
+  }
+  .breadcrumb {
+    gap: 8px;
+  }
+  .topbar-right {
+    gap: 10px;
+  }
+  .private-label {
+    display: none;
+  }
+  main {
+    padding: 25px 16px 0;
+  }
+  .page-heading h1 {
+    font-size: 25px;
+  }
+  .page-heading p {
+    font-size: 11px;
+  }
+  .heading-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .welcome-strip {
+    padding: 14px;
+    gap: 10px;
+  }
+  .welcome-strip > .badge {
+    font-size: 8px;
+  }
+  .welcome-strip div > span {
+    font-size: 10px;
+  }
+  .welcome-strip strong {
+    font-size: 11px;
+  }
+  .welcome-icon {
+    width: 35px;
+    height: 35px;
+    flex-shrink: 0;
+  }
+  .section-toolbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .tabs {
+    gap: 1px;
+  }
+  .tabs button {
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+  .search {
+    margin-left: auto;
+  }
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .widget-small,
+  .widget-medium,
+  .widget-wide {
+    grid-column: span 1;
+  }
+  .widget-header h2 {
+    font-size: 13px;
+  }
+  .kanban {
+    gap: 7px;
+    padding: 0 12px 14px;
+  }
+  .task h4 {
+    font-size: 10px;
+  }
+  .task > small {
+    font-size: 8px;
+    overflow-wrap: anywhere;
+  }
+  .stats span {
+    font-size: 10px;
+  }
+  .project-progress {
+    width: 85px;
+  }
+  .widget-small .kanban {
+    grid-template-columns: 1fr;
+  }
+  .page-footer {
+    font-size: 8px;
+    gap: 10px;
+  }
+  .add-widget-area {
+    font-size: 10px;
+    gap: 5px;
+  }
+  .add-widget-area strong {
+    margin-left: 3px;
+  }
+  .widget-catalog {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .catalog-item {
+    padding: 12px;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .modal {
+    padding: 19px;
+  }
+  .content-panel {
+    padding: 14px;
+  }
+  .edit-banner {
+    font-size: 10px;
+  }
+  .edit-banner .button {
+    font-size: 10px;
+  }
+  .sidebar-bottom {
+    padding-top: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

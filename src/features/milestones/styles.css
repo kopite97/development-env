@@ -1,0 +1,39 @@
+.milestones {
+  padding: 0 20px 7px;
+}
+.milestone {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 12px 0;
+}
+.milestone + .milestone {
+  border-top: 1px solid var(--border);
+}
+.milestone-icon {
+  align-self: flex-start;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #f4f1fa;
+  color: #aba0c6;
+}
+.milestone small {
+  display: block;
+  font-size: 9px;
+  color: #969da9;
+}
+.milestone strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 550;
+  margin: 6px 0;
+}
+.milestone > svg {
+  margin-left: auto;
+  color: #b2b7c0;
+}
