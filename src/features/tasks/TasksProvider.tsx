@@ -1,24 +1,34 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { initialTasks, type Task } from '../../data/demo';
 import { usePersistedState } from '../../hooks/usePersistedState';
-const validTasks = (v: unknown): v is Task[] =>
-  Array.isArray(v) &&
-  v.every(
-    (t) =>
-      t &&
-      typeof t.id === 'string' &&
-      typeof t.title === 'string' &&
-      typeof t.project === 'string' &&
-      ['unity', 'server'].includes(t.scope) &&
-      ['todo', 'doing', 'done'].includes(t.status) &&
-      ['높음', '보통'].includes(t.priority) &&
-      typeof t.tag === 'string',
-  );
+import { useProjects } from '../projects/ProjectsProvider';
+import { resolveTask, validTasks } from './model';
 function useTasksStore() {
-  const [tasks, save, error] = usePersistedState('devspace.tasks.v1', initialTasks, validTasks);
+  const [stored, save, error] = usePersistedState('devspace.tasks.v1', initialTasks, validTasks);
+  const { projects } = useProjects();
+  const all = stored.map((t) => resolveTask(t, projects));
+  const tasks = all.filter((t) => !t.deletedAt);
   const changeStatus = (id: string, status: Task['status']) =>
-    save(tasks.map((t) => (t.id === id ? { ...t, status } : t)));
-  return { tasks, changeStatus, error };
+    save(all.map((t) => (t.id === id ? { ...t, status } : t)));
+  const upsert = (task: Task) =>
+    save(
+      all.some((t) => t.id === task.id)
+        ? all.map((t) => (t.id === task.id ? task : t))
+        : [task, ...all],
+    );
+  const remove = (id: string) =>
+    save(all.map((t) => (t.id === id ? { ...t, deletedAt: new Date().toISOString() } : t)));
+  const restore = (id: string) =>
+    save(all.map((t) => (t.id === id ? { ...t, deletedAt: null } : t)));
+  return {
+    tasks,
+    deletedTasks: all.filter((t) => !!t.deletedAt),
+    changeStatus,
+    upsert,
+    remove,
+    restore,
+    error,
+  };
 }
 const Context = createContext<ReturnType<typeof useTasksStore> | null>(null);
 export function TasksProvider({ children }: { children: ReactNode }) {

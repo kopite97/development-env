@@ -1,6 +1,7 @@
 import { Box, ChevronRight, Gamepad2, Globe, Server, type LucideIcon } from 'lucide-react';
 import { Progress } from '../../components/ui';
-import { projects, type Scope, type Task } from '../../data/demo';
+import { type Scope, type Task } from '../../data/demo';
+import type { Project } from './model';
 import type { DetailHandler } from '../../types/ui';
 export const projectIcons: Record<string, LucideIcon> = {
   forest: Gamepad2,
@@ -13,11 +14,15 @@ export function ProjectOverview({
   tasks,
   onDetail,
   search = '',
+  projects,
+  onEdit,
 }: {
   scope: Scope;
   tasks: Task[];
   onDetail: DetailHandler;
   search?: string;
+  projects: Project[];
+  onEdit?: (project: Project) => void;
 }) {
   const list = projects.filter(
     (p) =>
@@ -52,16 +57,18 @@ export function ProjectOverview({
       </div>
       <div className="project-list">
         {list.map((p) => {
-          const Icon = projectIcons[p.id];
+          const Icon = projectIcons[p.id] ?? (p.scope === 'unity' ? Gamepad2 : Server);
           return (
             <button
               className="project-row"
               key={p.id}
               onClick={() =>
-                onDetail(
-                  p.name,
-                  `${p.subtitle}\n기술 스택: ${p.stack}\n현재 목표: ${p.milestone}\n진행률: ${p.progress}%\n\n예시 프로젝트입니다. 실제 저장소 연동은 아직 설정되지 않았습니다.`,
-                )
+                onEdit
+                  ? onEdit(p)
+                  : onDetail(
+                      p.name,
+                      `${p.subtitle}\n기술 스택: ${p.stack}\n현재 목표: ${p.milestone}\n진행률: ${p.progress}%\n저장소: ${p.repositoryUrl || '등록하지 않음'}`,
+                    )
               }
             >
               <span className={`project-icon ${p.color}`}>

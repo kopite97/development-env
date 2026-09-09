@@ -24,6 +24,8 @@
 
 ## 데이터 흐름
 
+프로젝트 CRUD는 ProjectsProvider가 소유합니다. 태스크는 projectId로 연결하고 예전 이름 기반 데이터도 호환합니다. 일지·작업의 프로젝트 이름과 분야는 조회 시 최신 프로젝트에서 해석합니다. TaskManager는 TaskBoard와 편집·휴지통을 연결하는 컨테이너이며, ProjectSelect는 작업·일지에서 재사용합니다.
+
 ```text
 App → AppProviders → AppLayout → PageRouter → pages
                                            ↓

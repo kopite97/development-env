@@ -16,12 +16,14 @@ import { QuickLinks } from '../links/QuickLinks';
 import { MilestoneList } from '../milestones/MilestoneList';
 import { DeploymentStatus } from '../operations/DeploymentStatus';
 import { ProjectOverview } from '../projects/ProjectOverview';
-import { TaskBoard } from '../tasks/TaskBoard';
+import { TaskManager } from '../tasks/TaskManager';
+import type { Project } from '../projects/model';
 import type { Widget, WidgetType } from './model';
 export type WidgetProps = {
   widget: Widget;
   tasks: Task[];
   journals: JournalEntry[];
+  projects: Project[];
   onTaskChange: (id: string, status: Task['status']) => void;
   onDetail: DetailHandler;
 };
@@ -39,16 +41,19 @@ export const registry: Record<
     description: '진행률과 작업 현황을 한곳에서 확인해요.',
     icon: Layers3,
     component: (p) => (
-      <ProjectOverview scope={p.widget.scope} tasks={p.tasks} onDetail={p.onDetail} />
+      <ProjectOverview
+        projects={p.projects}
+        scope={p.widget.scope}
+        tasks={p.tasks}
+        onDetail={p.onDetail}
+      />
     ),
   },
   board: {
     title: '작업 보드',
     description: '할 일부터 완료까지 작업 흐름을 관리해요.',
     icon: Check,
-    component: (p) => (
-      <TaskBoard scope={p.widget.scope} tasks={p.tasks} onTaskChange={p.onTaskChange} />
-    ),
+    component: (p) => <TaskManager scope={p.widget.scope} />,
   },
   deploy: {
     title: '운영 · 배포 현황',
@@ -74,6 +79,8 @@ export const registry: Record<
     title: '다가오는 마일스톤',
     description: '프로젝트의 다음 목표를 확인해요.',
     icon: Timer,
-    component: (p) => <MilestoneList scope={p.widget.scope} onDetail={p.onDetail} />,
+    component: (p) => (
+      <MilestoneList projects={p.projects} scope={p.widget.scope} onDetail={p.onDetail} />
+    ),
   },
 };

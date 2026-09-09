@@ -11,12 +11,14 @@ import type { Widget } from '../features/dashboard/model';
 import { registry } from '../features/dashboard/registry';
 import { useJournals } from '../features/journal/JournalsProvider';
 import { useTasks } from '../features/tasks/TasksProvider';
+import { useProjects } from '../features/projects/ProjectsProvider';
 export function HomePage() {
   const dashboard = useDashboard();
   const { editing, items } = dashboard;
   const { filter, setFilter, query, setQuery, setToast, onDetail } = useWorkspace();
   const { tasks, changeStatus } = useTasks();
   const { journals } = useJournals();
+  const { activeProjects } = useProjects();
   const [editor, setEditor] = useState<Widget | 'new' | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
@@ -112,6 +114,7 @@ export function HomePage() {
               onRemove={() => dashboard.remove(w.id)}
             >
               <Content
+                projects={activeProjects}
                 widget={w}
                 tasks={tasks}
                 journals={journals}

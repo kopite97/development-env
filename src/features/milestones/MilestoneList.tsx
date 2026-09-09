@@ -1,7 +1,16 @@
 import { ChevronRight, Flag } from 'lucide-react';
-import { projects, type Scope } from '../../data/demo';
+import { type Scope } from '../../data/demo';
+import type { Project } from '../projects/model';
 import type { DetailHandler } from '../../types/ui';
-export function MilestoneList({ scope, onDetail }: { scope: Scope; onDetail: DetailHandler }) {
+export function MilestoneList({
+  scope,
+  onDetail,
+  projects,
+}: {
+  scope: Scope;
+  onDetail: DetailHandler;
+  projects: Project[];
+}) {
   return (
     <div className="milestones">
       {projects

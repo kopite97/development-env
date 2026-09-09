@@ -6,10 +6,12 @@ export function TaskBoard({
   scope,
   tasks,
   onTaskChange,
+  onEdit,
 }: {
   scope: Scope;
   tasks: Task[];
   onTaskChange: (id: string, status: Task['status']) => void;
+  onEdit?: (task: Task) => void;
 }) {
   const [dragged, setDragged] = useState<string | null>(null);
   const [target, setTarget] = useState<Task['status'] | null>(null);
@@ -66,7 +68,15 @@ export function TaskBoard({
                 }}
               >
                 <small>{t.project}</small>
-                <h4>{t.title}</h4>
+                <h4>
+                  {onEdit ? (
+                    <button className="task-title" onClick={() => onEdit(t)}>
+                      {t.title}
+                    </button>
+                  ) : (
+                    t.title
+                  )}
+                </h4>
                 <div className="task-meta">
                   <Badge tone={t.tag === '버그' ? 'amber' : t.tag === '개선' ? 'blue' : 'neutral'}>
                     {t.tag}

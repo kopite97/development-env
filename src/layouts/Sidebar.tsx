@@ -3,9 +3,11 @@ import { navigationItems as navItems } from '../app/navigation';
 import { useWorkspace } from '../app/WorkspaceProvider';
 import { Badge } from '../components/ui';
 import { useDashboard } from '../features/dashboard/DashboardProvider';
+import { useProjects } from '../features/projects/ProjectsProvider';
 export function Sidebar({ mobileNav, onNavigate }: { mobileNav: boolean; onNavigate: () => void }) {
   const { page, navigate: go, setFilter, onDetail } = useWorkspace();
   const { editing } = useDashboard();
+  const { activeProjects } = useProjects();
   const navigate = (label: import('../app/navigation').PageId) => {
     if (go(label)) onNavigate();
   };
@@ -42,7 +44,9 @@ export function Sidebar({ mobileNav, onNavigate }: { mobileNav: boolean; onNavig
           >
             <item.icon size={18} />
             {item.label}
-            {item.label === '프로젝트' && <span className="nav-count">4</span>}
+            {item.label === '프로젝트' && (
+              <span className="nav-count">{activeProjects.length}</span>
+            )}
           </button>
         ))}
       </nav>
@@ -55,7 +59,10 @@ export function Sidebar({ mobileNav, onNavigate }: { mobileNav: boolean; onNavig
         }}
       >
         <span className="area-dot unity-dot" />
-        Unity 개발<span className="nav-count">2</span>
+        Unity 개발
+        <span className="nav-count">
+          {activeProjects.filter((p) => p.scope === 'unity').length}
+        </span>
       </button>
       <button
         className="nav-item"
@@ -65,7 +72,10 @@ export function Sidebar({ mobileNav, onNavigate }: { mobileNav: boolean; onNavig
         }}
       >
         <span className="area-dot server-dot" />
-        서버 · 웹 개발<span className="nav-count">2</span>
+        서버 · 웹 개발
+        <span className="nav-count">
+          {activeProjects.filter((p) => p.scope === 'server').length}
+        </span>
       </button>
       <div className="sidebar-bottom">
         <div className="workspace-note">

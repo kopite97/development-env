@@ -6,12 +6,14 @@ import { useDashboard } from '../features/dashboard/DashboardProvider';
 import { useJournals } from '../features/journal/JournalsProvider';
 import { useTasks } from '../features/tasks/TasksProvider';
 import { Badge, Button } from '../components/ui';
+import { useProjects } from '../features/projects/ProjectsProvider';
 export function PageScaffold({ actions, children }: { actions?: ReactNode; children: ReactNode }) {
   const { page, filter, setFilter, query, setQuery, toast, setToast } = useWorkspace();
   const { editing, error: layoutError } = useDashboard();
   const { error: taskError } = useTasks();
   const { error: journalError } = useJournals();
-  const error = layoutError || taskError || journalError;
+  const { activeProjects, error: projectError } = useProjects();
+  const error = layoutError || taskError || journalError || projectError;
   return (
     <>
       <div className="page-heading">
@@ -33,10 +35,10 @@ export function PageScaffold({ actions, children }: { actions?: ReactNode; child
         <div>
           <strong>오늘도, 아이디어를 현실로.</strong>
           <span>
-            진행 중인 프로젝트 <b>4개</b>와 함께 개발을 이어가 보세요.
+            진행 중인 프로젝트 <b>{activeProjects.length}개</b>와 함께 개발을 이어가 보세요.
           </span>
         </div>
-        <Badge tone="purple">예시 데이터</Badge>
+        <Badge tone="purple">로컬 작업실</Badge>
       </div>
       {error && (
         <div className="notice" role="alert">

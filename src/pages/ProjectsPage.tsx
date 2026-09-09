@@ -2,14 +2,65 @@ import { useWorkspace } from '../app/WorkspaceProvider';
 import { PageScaffold } from '../layouts/PageScaffold';
 import { ProjectOverview } from '../features/projects/ProjectOverview';
 import { useTasks } from '../features/tasks/TasksProvider';
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
+import { Button, EmptyState } from '../components/ui';
+import { useProjects } from '../features/projects/ProjectsProvider';
+import { ProjectEditor } from '../features/projects/ProjectEditor';
+import type { Project } from '../features/projects/model';
 export function ProjectsPage() {
-  const { filter, query, onDetail } = useWorkspace();
+  const { filter, query, onDetail, setFilter, setQuery } = useWorkspace();
   const { tasks } = useTasks();
+  const { projects, upsert, archive } = useProjects();
+  const [editor, setEditor] = useState<Project | 'new' | null>(null);
+  const [archived, setArchived] = useState(false);
+  const list = projects.filter((p) => p.archived === archived);
   return (
-    <PageScaffold>
+    <PageScaffold
+      actions={
+        <Button variant="primary" onClick={() => setEditor('new')}>
+          <Plus size={16} />
+          프로젝트 추가
+        </Button>
+      }
+    >
       <div className="content-panel">
-        <ProjectOverview scope={filter} search={query} tasks={tasks} onDetail={onDetail} />
+        <div className="feature-actions">
+          <Button variant={!archived ? 'primary' : 'secondary'} onClick={() => setArchived(false)}>
+            현재 프로젝트
+          </Button>
+          <Button variant={archived ? 'primary' : 'secondary'} onClick={() => setArchived(true)}>
+            보관된 프로젝트
+          </Button>
+        </div>
+        <ProjectOverview
+          projects={list}
+          scope={filter}
+          search={query}
+          tasks={tasks}
+          onDetail={onDetail}
+          onEdit={setEditor}
+        />
+        {!list.length && (
+          <EmptyState title={archived ? '보관된 프로젝트가 없어요' : '프로젝트를 추가해 보세요'} />
+        )}
       </div>
+      {editor && (
+        <ProjectEditor
+          existing={editor === 'new' ? undefined : editor}
+          onClose={() => setEditor(null)}
+          onArchive={archive}
+          onSave={(p) => {
+            const success = upsert(p);
+            if (success) {
+              setFilter('all');
+              setQuery('');
+              setArchived(p.archived);
+            }
+            return success;
+          }}
+        />
+      )}
     </PageScaffold>
   );
 }

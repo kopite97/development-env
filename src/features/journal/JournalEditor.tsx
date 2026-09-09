@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Field, Modal } from '../../components/ui';
-import { projects } from '../../data/demo';
+import { useProjects } from '../projects/ProjectsProvider';
+import { ProjectSelect } from '../projects/ProjectSelect';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import type { JournalEntry } from './model';
 
@@ -12,6 +13,7 @@ export function JournalEditor({
   onClose: () => void;
 }) {
   const [title, setTitle] = useState('');
+  const { projects } = useProjects();
   const [projectId, setProjectId] = useState('');
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
@@ -58,16 +60,7 @@ export function JournalEditor({
               autoFocus
             />
           </Field>
-          <Field label="프로젝트">
-            <select required value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              <option value="">프로젝트 선택</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <ProjectSelect projects={projects} value={projectId} onChange={setProjectId} />
           <Field label="본문">
             <textarea
               required

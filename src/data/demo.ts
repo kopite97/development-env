@@ -58,6 +58,9 @@ export type Task = {
   status: 'todo' | 'doing' | 'done';
   priority: '높음' | '보통';
   tag: string;
+  projectId?: string;
+  description?: string;
+  deletedAt?: string | null;
 };
 export const initialTasks: Task[] = [
   {
