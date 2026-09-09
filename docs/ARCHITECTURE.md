@@ -69,3 +69,27 @@ App → AppProviders → AppLayout → PageRouter → pages
 ## 변경 시 검증
 
 `npm run build`, `npm test`, `npm run test:e2e`, `npm run format:check`를 사용합니다. 특히 페이지 전환 후 데이터 유지, 배치 편집 중 이동 차단, 태스크 드래그, 일지 저장, 저장 실패·초안 보호를 회귀 검증합니다. 새로운 CRUD·라우팅 기능은 안정화 목록의 해당 작업으로 관리합니다.
+
+## 백엔드 API 요구사항
+
+2026-09-09, 안정화 1~8번까지의 구현 기준입니다. 서버는 아직 미구현이며 기본 경로는 `/api/v1`입니다. 상세 계약은 [API 문서](API.md)에 모으고 이 문서는 기능별 연결 책임을 요약합니다.
+
+| 현재 기능 / 소유자                          | 필요한 API                                                                          | 추가·보완 사항                                                                                            |
+| ------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 홈 배치 / DashboardProvider                 | GET / PUT `/dashboards/home`                                                        | 위젯 전체 원자 저장, revision 충돌, 빈 배열 보존. 기본 복원·검색·이동은 별도 API 불필요                   |
+| 프로젝트 / ProjectsProvider                 | GET / POST `/projects`, GET / PATCH `/projects/{id}`                                | 현재/보관 조회, 보관 해제, 저장소 URL·수동 진행률·목표 저장. 이름·분야 변경을 연결 데이터 조회에 반영     |
+| 태스크 / TasksProvider                      | GET / POST `/tasks`, GET / PATCH / DELETE `/tasks/{id}`, POST `/tasks/{id}/restore` | 상세 본문 편집, 프로젝트 변경, `deleted=true` 휴지통, 소프트 삭제·복구 계약 보완                          |
+| 개발일지 / JournalsProvider                 | GET / POST `/journals`, GET `/journals/{id}`                                        | 제목·본문·projectId, 최신순 목록·최근 3건. 수정·삭제 UI는 아직 없음                                       |
+| 통계 / ProjectOverview·Sidebar·PageScaffold | GET `/overview`, GET `/tasks/stats`                                                 | 전체 통계와 검색 건수 분리. 보관 프로젝트의 작업 포함, 삭제 작업 제외, 목록 total은 페이지 전체 일치 개수 |
+| 자료실·예시 위젯                            | GET `/links`, GET `/milestones`, GET `/services`, GET `/services/{id}/deployments`  | 현재는 고정 링크·예시 목표·운영 상태. 실제 데이터 전환 시 연결하며 관리 UI는 후속                         |
+
+서버 연결 시 기능별 Provider가 조회·mutation 계층을 사용하고, 페이지는 조합 책임을 유지합니다. 저장 실패 시 입력 보존, 재시도 중복 생성 방지, revision 검증, 프로젝트 변경 후 연결 목록·통계 캐시 갱신이 필요합니다. 현재 구현에 필요한 세부 계약은 API 문서의 공통 계약·업무 리소스·통계와 프론트 연결 절을 참조합니다.
+
+## 향후 기능과 API
+
+우선 링크 관리·일지 수정/삭제·프로젝트별 위젯·독립 마일스톤을 기존 안정화 10~13번과 함께 진행합니다. API 확장 방향과 착수 시 결정 사항은 [후속 기능 제안](API.md#7-후속-기능-제안)을 참조합니다.
+
+- 데이터 보호: 로컬 백업은 추가 API 없이 가능. 서버 가져오기는 프로젝트 id 매핑과 검증 미리보기·확정 API를 함께 설계합니다.
+- 작업 기한·활동 기록: tasks의 dueDate 및 필터 확장, GET `/activities`로 변경 이력을 조회합니다.
+- 초안 복구: 브라우저 자동 임시 저장부터 도입하고, 여러 기기 초안이 필요할 때만 `/drafts` API를 추가합니다.
+- URL 이동 유지·접근성·모바일 개선은 프론트 작업입니다. 별도 CRUD API를 추가하지 않습니다.

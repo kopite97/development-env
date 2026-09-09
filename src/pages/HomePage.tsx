@@ -15,7 +15,7 @@ import { useProjects } from '../features/projects/ProjectsProvider';
 export function HomePage() {
   const dashboard = useDashboard();
   const { editing, items } = dashboard;
-  const { filter, setFilter, query, setQuery, setToast, onDetail } = useWorkspace();
+  const { filter, setFilter, query, setQuery, setToast, onDetail, resetSearch } = useWorkspace();
   const { tasks, changeStatus } = useTasks();
   const { journals } = useJournals();
   const { activeProjects } = useProjects();
@@ -126,7 +126,10 @@ export function HomePage() {
         })}
       </div>
       {!shown.length && (
-        <EmptyState title="표시할 위젯이 없어요">
+        <EmptyState
+          title="표시할 위젯이 없어요"
+          onReset={query || filter !== 'all' ? resetSearch : undefined}
+        >
           <p>검색 조건을 바꾸거나 홈에 필요한 위젯을 추가해 주세요.</p>
           <Button onClick={add}>
             <Plus size={16} />

@@ -6,13 +6,23 @@ import { useProjects } from '../projects/ProjectsProvider';
 import { useTasks } from './TasksProvider';
 import { TaskBoard } from './TaskBoard';
 import { TaskEditor } from './TaskEditor';
-export function TaskManager({ scope, search = '' }: { scope: Scope; search?: string }) {
+export function TaskManager({
+  scope,
+  search = '',
+  onReset,
+}: {
+  scope: Scope;
+  search?: string;
+  onReset?: () => void;
+}) {
   const { tasks, deletedTasks, upsert, remove, restore, changeStatus, error } = useTasks();
   const { projects } = useProjects();
   const [editor, setEditor] = useState<Task | 'new' | null>(null);
   const [trash, setTrash] = useState(false);
-  const visible = tasks.filter((t) =>
-    `${t.title} ${t.project}`.toLowerCase().includes(search.toLowerCase()),
+  const visible = tasks.filter(
+    (t) =>
+      (scope === 'all' || t.scope === scope) &&
+      `${t.title} ${t.project}`.toLowerCase().includes(search.toLowerCase()),
   );
   const removed = deletedTasks.filter((t) => scope === 'all' || t.scope === scope);
   return (
@@ -27,6 +37,18 @@ export function TaskManager({ scope, search = '' }: { scope: Scope; search?: str
           휴지통 ({removed.length})
         </Button>
       </div>
+      {search && <p role="status">검색 결과 {visible.length}개</p>}
+      {!visible.length && (
+        <EmptyState
+          title={search || scope !== 'all' ? '검색 조건에 맞는 태스크가 없어요' : '태스크가 없어요'}
+          onReset={search || scope !== 'all' ? onReset : undefined}
+        >
+          <Button onClick={() => setEditor('new')}>
+            <Plus size={16} />
+            태스크 추가
+          </Button>
+        </EmptyState>
+      )}
       <TaskBoard scope={scope} tasks={visible} onTaskChange={changeStatus} onEdit={setEditor} />
       {editor && (
         <TaskEditor

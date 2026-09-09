@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { RotateCcw, X } from 'lucide-react';
 import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 export function Button({
   children,
@@ -23,10 +23,24 @@ export function Badge({
 }) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
-export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
+export function EmptyState({
+  title,
+  children,
+  onReset,
+}: {
+  title: string;
+  children?: ReactNode;
+  onReset?: () => void;
+}) {
   return (
     <div className="empty-state">
       <h3>{title}</h3>
+      {onReset && (
+        <Button onClick={onReset}>
+          <RotateCcw size={16} />
+          검색·필터 초기화
+        </Button>
+      )}
       {children}
     </div>
   );

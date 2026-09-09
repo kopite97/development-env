@@ -4,12 +4,12 @@ import { ProjectOverview } from '../features/projects/ProjectOverview';
 import { useTasks } from '../features/tasks/TasksProvider';
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { Button, EmptyState } from '../components/ui';
+import { Button } from '../components/ui';
 import { useProjects } from '../features/projects/ProjectsProvider';
 import { ProjectEditor } from '../features/projects/ProjectEditor';
 import type { Project } from '../features/projects/model';
 export function ProjectsPage() {
-  const { filter, query, onDetail, setFilter, setQuery } = useWorkspace();
+  const { filter, query, onDetail, setFilter, setQuery, resetSearch } = useWorkspace();
   const { tasks } = useTasks();
   const { projects, upsert, archive } = useProjects();
   const [editor, setEditor] = useState<Project | 'new' | null>(null);
@@ -40,10 +40,15 @@ export function ProjectsPage() {
           tasks={tasks}
           onDetail={onDetail}
           onEdit={setEditor}
+          archived={archived}
+          onReset={resetSearch}
+          emptyAction={
+            <Button onClick={() => setEditor('new')}>
+              <Plus size={16} />
+              프로젝트 추가
+            </Button>
+          }
         />
-        {!list.length && (
-          <EmptyState title={archived ? '보관된 프로젝트가 없어요' : '프로젝트를 추가해 보세요'} />
-        )}
       </div>
       {editor && (
         <ProjectEditor

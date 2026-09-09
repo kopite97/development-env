@@ -1,5 +1,6 @@
 import { ArrowUpRight, Box, Code2, Github, Globe } from 'lucide-react';
 import { type Scope } from '../../data/demo';
+import { EmptyState } from '../../components/ui';
 const links = [
   { label: 'GitHub', desc: '코드와 저장소', url: 'https://github.com', icon: Github, scope: 'all' },
   {
@@ -24,16 +25,26 @@ const links = [
     scope: 'server',
   },
 ];
-export function QuickLinks({ scope, search = '' }: { scope: Scope; search?: string }) {
+export function QuickLinks({
+  scope,
+  search = '',
+  onReset,
+}: {
+  scope: Scope;
+  search?: string;
+  onReset?: () => void;
+}) {
+  const visible = links.filter(
+    (l) =>
+      (scope === 'all' || l.scope === scope || l.scope === 'all') &&
+      (l.label + l.desc).toLowerCase().includes(search.toLowerCase()),
+  );
   return (
-    <div className="quick-links">
-      {links
-        .filter(
-          (l) =>
-            (scope === 'all' || l.scope === scope || l.scope === 'all') &&
-            (l.label + l.desc).toLowerCase().includes(search.toLowerCase()),
-        )
-        .map((l) => (
+    <>
+      {search && <p role="status">검색 결과 {visible.length}개</p>}
+      {!visible.length && <EmptyState title="검색 조건에 맞는 링크가 없어요" onReset={onReset} />}
+      <div className="quick-links">
+        {visible.map((l) => (
           <a href={l.url} key={l.label} target="_blank" rel="noreferrer">
             <span className="link-icon">
               <l.icon size={18} />
@@ -45,6 +56,7 @@ export function QuickLinks({ scope, search = '' }: { scope: Scope; search?: stri
             <ArrowUpRight size={15} />
           </a>
         ))}
-    </div>
+      </div>
+    </>
   );
 }

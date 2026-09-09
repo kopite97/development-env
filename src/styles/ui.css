@@ -193,6 +193,10 @@
   font-size: 14px;
   font-weight: 550;
 }
+.empty-state > .button {
+  margin: 12px 4px 0;
+  white-space: normal;
+}
 .empty-state p {
   font-size: 12px;
   line-height: 1.8;

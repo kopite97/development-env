@@ -26,6 +26,10 @@ function useWorkspaceState() {
     setFilter,
     query,
     setQuery,
+    resetSearch: () => {
+      setQuery('');
+      setFilter('all');
+    },
     toast,
     setToast,
     detail,

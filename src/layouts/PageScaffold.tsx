@@ -35,7 +35,7 @@ export function PageScaffold({ actions, children }: { actions?: ReactNode; child
         <div>
           <strong>오늘도, 아이디어를 현실로.</strong>
           <span>
-            진행 중인 프로젝트 <b>{activeProjects.length}개</b>와 함께 개발을 이어가 보세요.
+            현재 프로젝트 <b>{activeProjects.length}개</b>와 함께 개발을 이어가 보세요.
           </span>
         </div>
         <Badge tone="purple">로컬 작업실</Badge>
