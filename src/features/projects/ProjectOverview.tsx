@@ -3,7 +3,6 @@ import { EmptyState, Progress } from '../../components/ui';
 import type { ReactNode } from 'react';
 import { type Scope, type Task } from '../../data/demo';
 import type { Project } from './model';
-import type { DetailHandler } from '../../types/ui';
 export const projectIcons: Record<string, LucideIcon> = {
   forest: Gamepad2,
   orbit: Box,
@@ -13,20 +12,18 @@ export const projectIcons: Record<string, LucideIcon> = {
 export function ProjectOverview({
   scope,
   tasks,
-  onDetail,
+  onOpen,
   search = '',
   projects,
-  onEdit,
   onReset,
   emptyAction,
   archived = false,
 }: {
   scope: Scope;
   tasks: Task[];
-  onDetail: DetailHandler;
+  onOpen: (id: string) => void;
   search?: string;
   projects: Project[];
-  onEdit?: (project: Project) => void;
   onReset?: () => void;
   emptyAction?: ReactNode;
   archived?: boolean;
@@ -82,18 +79,7 @@ export function ProjectOverview({
         {list.map((p) => {
           const Icon = projectIcons[p.id] ?? (p.scope === 'unity' ? Gamepad2 : Server);
           return (
-            <button
-              className="project-row"
-              key={p.id}
-              onClick={() =>
-                onEdit
-                  ? onEdit(p)
-                  : onDetail(
-                      p.name,
-                      `${p.subtitle}\n기술 스택: ${p.stack}\n현재 목표: ${p.milestone}\n진행률: ${p.progress}%\n저장소: ${p.repositoryUrl || '등록하지 않음'}`,
-                    )
-              }
-            >
+            <button className="project-row" key={p.id} onClick={() => onOpen(p.id)}>
               <span className={`project-icon ${p.color}`}>
                 <Icon size={22} />
               </span>

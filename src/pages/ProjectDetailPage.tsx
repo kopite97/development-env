@@ -1,0 +1,106 @@
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Pencil } from 'lucide-react';
+import { useWorkspace } from '../app/WorkspaceProvider';
+import { Button, EmptyState } from '../components/ui';
+import { PageScaffold } from '../layouts/PageScaffold';
+import { useProjects } from '../features/projects/ProjectsProvider';
+import { ProjectEditor } from '../features/projects/ProjectEditor';
+import { ProjectSummary } from '../features/projects/ProjectSummary';
+import { useTasks } from '../features/tasks/TasksProvider';
+import { TaskBoard } from '../features/tasks/TaskBoard';
+import { useJournals } from '../features/journal/JournalsProvider';
+import { RecentJournals } from '../features/journal/RecentJournals';
+export function ProjectDetailPage({ projectId }: { projectId: string }) {
+  const { closeProject, onDetail, setShowArchivedProjects } = useWorkspace();
+  const { projects, upsert, archive } = useProjects();
+  const { tasks, changeStatus } = useTasks();
+  const { journals } = useJournals();
+  const [editing, setEditing] = useState(false);
+  const region = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    region.current?.focus();
+    window.scrollTo(0, 0);
+  }, []);
+  const project = projects.find((p) => p.id === projectId);
+  const projectTasks = tasks.filter((t) => t.projectId === projectId);
+  const projectJournals = journals
+    .filter((j) => j.projectId === projectId)
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const back = (
+    <Button onClick={closeProject}>
+      <ArrowLeft size={16} />
+      프로젝트 목록
+    </Button>
+  );
+  return (
+    <div ref={region} tabIndex={-1} className="project-detail" aria-label="프로젝트 상세 페이지">
+      <PageScaffold
+        title={project?.name ?? '프로젝트를 찾을 수 없어요'}
+        description="프로젝트 정보와 연결된 작업·개발 일지를 확인하세요."
+        showOverview={false}
+        showFilters={false}
+        actions={
+          <div className="heading-actions">
+            {back}
+            {project && (
+              <Button onClick={() => setEditing(true)}>
+                <Pencil size={16} />
+                프로젝트 편집
+              </Button>
+            )}
+          </div>
+        }
+      >
+        {!project ? (
+          <EmptyState title="프로젝트가 없거나 더 이상 접근할 수 없어요" />
+        ) : (
+          <>
+            <ProjectSummary project={project} />
+            <section className="content-panel" aria-label="프로젝트 작업">
+              <div className="panel-heading">
+                <h2>연결된 작업</h2>
+                <p>
+                  전체 {projectTasks.length}개 · 진행 중{' '}
+                  {projectTasks.filter((t) => t.status === 'doing').length}개 · 완료{' '}
+                  {projectTasks.filter((t) => t.status === 'done').length}개
+                </p>
+              </div>
+              {projectTasks.length ? (
+                <TaskBoard scope="all" tasks={projectTasks} onTaskChange={changeStatus} />
+              ) : (
+                <EmptyState title="연결된 작업이 없어요" />
+              )}
+            </section>
+            <section className="content-panel" aria-label="프로젝트 최근 일지">
+              <div className="panel-heading">
+                <h2>최근 개발 일지</h2>
+                <p>이 프로젝트의 최신 일지 최대 3건입니다.</p>
+              </div>
+              {projectJournals.length ? (
+                <RecentJournals scope="all" journals={projectJournals} onDetail={onDetail} />
+              ) : (
+                <EmptyState title="연결된 개발 일지가 없어요" />
+              )}
+            </section>
+            {editing && (
+              <ProjectEditor
+                existing={project}
+                onClose={() => setEditing(false)}
+                onSave={(p) => {
+                  const saved = upsert(p);
+                  if (saved) setShowArchivedProjects(p.archived);
+                  return saved;
+                }}
+                onArchive={(id, archived) => {
+                  const saved = archive(id, archived);
+                  if (saved) setShowArchivedProjects(archived);
+                  return saved;
+                }}
+              />
+            )}
+          </>
+        )}
+      </PageScaffold>
+    </div>
+  );
+}

@@ -9,11 +9,19 @@ import { useProjects } from '../features/projects/ProjectsProvider';
 import { ProjectEditor } from '../features/projects/ProjectEditor';
 import type { Project } from '../features/projects/model';
 export function ProjectsPage() {
-  const { filter, query, onDetail, setFilter, setQuery, resetSearch } = useWorkspace();
+  const {
+    filter,
+    query,
+    openProject,
+    setFilter,
+    setQuery,
+    resetSearch,
+    showArchivedProjects: archived,
+    setShowArchivedProjects: setArchived,
+  } = useWorkspace();
   const { tasks } = useTasks();
   const { projects, upsert, archive } = useProjects();
   const [editor, setEditor] = useState<Project | 'new' | null>(null);
-  const [archived, setArchived] = useState(false);
   const list = projects.filter((p) => p.archived === archived);
   return (
     <PageScaffold
@@ -38,8 +46,7 @@ export function ProjectsPage() {
           scope={filter}
           search={query}
           tasks={tasks}
-          onDetail={onDetail}
-          onEdit={setEditor}
+          onOpen={openProject}
           archived={archived}
           onReset={resetSearch}
           emptyAction={

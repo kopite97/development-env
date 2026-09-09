@@ -51,11 +51,11 @@ svg {
   flex-shrink: 0;
 }
 small {
-  font-size: 11px;
+  font-size: 12px;
 }
 .muted {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .sr-only {
   position: absolute;
@@ -76,5 +76,10 @@ h1 {
   line-height: 1.5;
 }
 .milestone .muted {
-  font-size: 9px;
+  font-size: 12px;
+}
+
+.kanban:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
 }

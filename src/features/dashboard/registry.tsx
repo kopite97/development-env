@@ -26,6 +26,7 @@ export type WidgetProps = {
   projects: Project[];
   onTaskChange: (id: string, status: Task['status']) => void;
   onDetail: DetailHandler;
+  onProjectOpen: (id: string) => void;
 };
 export const registry: Record<
   WidgetType,
@@ -45,7 +46,7 @@ export const registry: Record<
         projects={p.projects}
         scope={p.widget.scope}
         tasks={p.tasks}
-        onDetail={p.onDetail}
+        onOpen={p.onProjectOpen}
       />
     ),
   },

@@ -15,7 +15,7 @@
   color: var(--text);
 }
 .catalog-item small {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .catalog-item.selected {

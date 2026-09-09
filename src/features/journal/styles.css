@@ -17,19 +17,19 @@
   border-top: 1px solid var(--border);
 }
 .journal-date {
-  font-size: 10px;
+  font-size: 12px;
   color: #999eac;
   white-space: nowrap;
 }
 .journal-row strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .journal-row small {
   display: block;
   color: #a1a7b1;
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 6px;
 }
 .journal-row > svg {
@@ -53,7 +53,7 @@
 }
 .document-row small {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 6px;
 }
 .document-row > svg:last-child {

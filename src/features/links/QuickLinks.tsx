@@ -1,60 +1,106 @@
 import { ArrowUpRight, Box, Code2, Github, Globe } from 'lucide-react';
-import { type Scope } from '../../data/demo';
-import { EmptyState } from '../../components/ui';
-const links = [
-  { label: 'GitHub', desc: '코드와 저장소', url: 'https://github.com', icon: Github, scope: 'all' },
-  {
-    label: 'Unity Documentation',
-    desc: '게임 개발 레퍼런스',
-    url: 'https://docs.unity3d.com',
-    icon: Box,
-    scope: 'unity',
-  },
-  {
-    label: 'Spring Documentation',
-    desc: '서버 개발 레퍼런스',
-    url: 'https://docs.spring.io',
-    icon: Code2,
-    scope: 'server',
-  },
-  {
-    label: 'React Documentation',
-    desc: '프론트엔드 레퍼런스',
-    url: 'https://react.dev',
-    icon: Globe,
-    scope: 'server',
-  },
-];
+import type { Scope } from '../../data/demo';
+import { Button, EmptyState } from '../../components/ui';
+import { useLinks } from './LinksProvider';
+import type { QuickLink } from './model';
+const linkIcons = { github: Github, unity: Box, spring: Code2, react: Globe };
+function LinkIcon({ id }: { id: string }) {
+  const Icon = linkIcons[id as keyof typeof linkIcons] ?? Globe;
+  return <Icon size={18} />;
+}
 export function QuickLinks({
   scope,
   search = '',
   onReset,
+  onAdd,
+  onEdit,
 }: {
   scope: Scope;
   search?: string;
   onReset?: () => void;
+  onAdd?: () => void;
+  onEdit?: (link: QuickLink) => void;
 }) {
+  const { links, error, remove, move } = useLinks();
   const visible = links.filter(
     (l) =>
       (scope === 'all' || l.scope === scope || l.scope === 'all') &&
-      (l.label + l.desc).toLowerCase().includes(search.toLowerCase()),
+      (l.label + l.desc + l.url).toLowerCase().includes(search.toLowerCase()),
   );
+  const filtered = scope !== 'all' || !!search;
   return (
     <>
       {search && <p role="status">검색 결과 {visible.length}개</p>}
-      {!visible.length && <EmptyState title="검색 조건에 맞는 링크가 없어요" onReset={onReset} />}
+      {onEdit && (
+        <p className="muted">
+          공통 링크는 모든 분야에 표시됩니다. 순서 변경은 검색·분야를 초기화한 전체 목록에서 할 수
+          있어요.
+        </p>
+      )}
+      {error && (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      )}
+      {!visible.length && (
+        <EmptyState
+          title={links.length ? '검색 조건에 맞는 링크가 없어요' : '등록된 링크가 없어요'}
+          onReset={onReset}
+        >
+          {onAdd && <Button onClick={onAdd}>링크 추가</Button>}
+        </EmptyState>
+      )}
       <div className="quick-links">
         {visible.map((l) => (
-          <a href={l.url} key={l.label} target="_blank" rel="noreferrer">
-            <span className="link-icon">
-              <l.icon size={18} />
-            </span>
-            <span>
-              <strong>{l.label}</strong>
-              <small>{l.desc}</small>
-            </span>
-            <ArrowUpRight size={15} />
-          </a>
+          <div className="quick-link-row" key={l.id}>
+            <a href={l.url} target="_blank" rel="noopener noreferrer">
+              <span className="link-icon">
+                <LinkIcon id={l.id} />
+              </span>
+              <span className="link-copy">
+                <strong>{l.label}</strong>
+                <small>{l.desc}</small>
+              </span>
+              <ArrowUpRight size={15} />
+            </a>
+            {onEdit && (
+              <div className="link-actions">
+                <span className="muted">
+                  {l.scope === 'all'
+                    ? '공통'
+                    : l.scope === 'unity'
+                      ? 'Unity 개발'
+                      : '서버 · 웹 개발'}
+                </span>
+                <Button onClick={() => onEdit(l)} aria-label={`${l.label} 편집`}>
+                  편집
+                </Button>
+                <Button
+                  disabled={filtered || links[0].id === l.id}
+                  onClick={() => move(l.id, -1)}
+                  aria-label={`${l.label} 위로`}
+                >
+                  위로
+                </Button>
+                <Button
+                  disabled={filtered || links[links.length - 1].id === l.id}
+                  onClick={() => move(l.id, 1)}
+                  aria-label={`${l.label} 아래로`}
+                >
+                  아래로
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    if (window.confirm(`“${l.label}” 링크를 삭제할까요?`)) remove(l.id);
+                  }}
+                  aria-label={`${l.label} 삭제`}
+                >
+                  삭제
+                </Button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </>

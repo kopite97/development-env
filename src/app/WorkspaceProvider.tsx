@@ -1,35 +1,70 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Scope } from '../data/demo';
 import { useDashboard } from '../features/dashboard/DashboardProvider';
+import { confirmNavigation } from '../hooks/navigationGuard';
 import type { DetailHandler } from '../types/ui';
 import type { PageId } from './navigation';
+import { pagePaths, projectPath } from './routes';
+import { useBrowserNavigation } from './useBrowserNavigation';
 function useWorkspaceState() {
-  const [page, setPage] = useState<PageId>('나의 홈');
-  const [filter, setFilter] = useState<Scope>('all');
-  const [query, setQuery] = useState('');
   const [toast, setToast] = useState('');
   const [detail, setDetail] = useState<{ title: string; body: string } | null>(null);
   const { editing } = useDashboard();
-  const navigate = (next: PageId) => {
+  const { location, entryKey, update } = useBrowserNavigation(() => {
     if (editing) {
       setToast('배치 편집을 저장하거나 취소한 뒤 이동해 주세요.');
       return false;
     }
-    setPage(next);
-    setQuery('');
-    return true;
-  };
+    return confirmNavigation();
+  });
+  useEffect(() => {
+    setDetail(null);
+    setToast('');
+  }, [entryKey]);
+  const navigate = (page: PageId) =>
+    update(
+      (current) => ({
+        ...current,
+        pathname: pagePaths[page],
+        page,
+        projectId: null,
+        notFound: false,
+        query: '',
+      }),
+      true,
+    );
   const onDetail: DetailHandler = (title, body) => setDetail({ title, body });
   return {
-    page,
-    filter,
-    setFilter,
-    query,
-    setQuery,
-    resetSearch: () => {
-      setQuery('');
-      setFilter('all');
-    },
+    ...location,
+    entryKey,
+    setShowArchivedProjects: (showArchivedProjects: boolean) =>
+      update((current) => ({ ...current, showArchivedProjects })),
+    openProject: (id: string) =>
+      update(
+        (current) => ({
+          ...current,
+          pathname: projectPath(id),
+          page: '프로젝트',
+          projectId: id,
+          notFound: false,
+          query: current.page === '프로젝트' ? current.query : '',
+          showArchivedProjects: current.page === '프로젝트' && current.showArchivedProjects,
+        }),
+        true,
+      ),
+    closeProject: () =>
+      update(
+        (current) => ({
+          ...current,
+          pathname: pagePaths['프로젝트'],
+          projectId: null,
+          notFound: false,
+        }),
+        true,
+      ),
+    setFilter: (filter: Scope) => update((current) => ({ ...current, filter })),
+    setQuery: (query: string) => update((current) => ({ ...current, query })),
+    resetSearch: () => update((current) => ({ ...current, query: '', filter: 'all' })),
     toast,
     setToast,
     detail,

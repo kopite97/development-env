@@ -12,7 +12,7 @@
   border: 0;
 }
 .stats span {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 .stats strong {
@@ -24,7 +24,7 @@
   line-height: 1;
 }
 .stats small {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
   color: #9ba1ac;
   margin-left: 6px;
@@ -70,12 +70,12 @@
   background: #faf5e9;
 }
 .project-info strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   display: block;
 }
 .project-info small {
-  font-size: 9px;
+  font-size: 12px;
   color: #9aa1ac;
   margin-top: 5px;
   display: block;
@@ -89,4 +89,48 @@
 }
 .content-panel .project-row {
   padding: 22px 0;
+}
+
+.project-detail {
+  min-width: 0;
+}
+.project-detail .page-heading h1 {
+  overflow-wrap: anywhere;
+}
+.project-detail .heading-actions {
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.project-detail .content-panel {
+  margin-bottom: 20px;
+  min-width: 0;
+}
+.project-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  margin-top: 12px;
+}
+.project-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 24px;
+  margin: 24px 0 0;
+}
+.project-facts dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.project-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.project-facts a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.project-facts .progress {
+  margin-top: 8px;
 }

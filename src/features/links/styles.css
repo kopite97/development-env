@@ -25,12 +25,33 @@
 }
 .quick-links strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
 }
 .quick-links small {
   display: block;
-  font-size: 9px;
-  color: #9ba1ac;
+  font-size: 12px;
+  color: var(--muted);
   margin-top: 4px;
+}
+
+.quick-link-row + .quick-link-row {
+  border-top: 1px solid var(--border);
+}
+.link-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.link-icon {
+  flex-shrink: 0;
+}
+.link-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+.quick-links strong {
+  font-size: 14px;
 }

@@ -17,7 +17,7 @@ export function TaskBoard({
   const [target, setTarget] = useState<Task['status'] | null>(null);
   const filtered = tasks.filter((t) => scope === 'all' || t.scope === scope);
   return (
-    <div className="kanban">
+    <div className="kanban" tabIndex={0} role="region" aria-label="작업 보드 상태 열 (가로 스크롤)">
       {(['todo', 'doing', 'done'] as const).map((status, i) => (
         <div
           className={`kanban-column column-${status} ${target === status ? 'drop-target' : ''}`}

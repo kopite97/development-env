@@ -38,6 +38,7 @@ test('project creation, rename and archive preserve task and journal relationshi
   await page.getByRole('button', { name: '일지 저장' }).click();
   await openProjects(page);
   await page.locator('.project-row').filter({ hasText: '새 게임' }).click();
+  await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
   await page.getByLabel('프로젝트 이름').fill('새 게임 v2');
   await page.getByRole('button', { name: '프로젝트 저장' }).click();
   await page.getByRole('button', { name: '작업 보드', exact: true }).click();
@@ -48,15 +49,18 @@ test('project creation, rename and archive preserve task and journal relationshi
   );
   await openProjects(page);
   await page.locator('.project-row').filter({ hasText: '새 게임 v2' }).click();
+  await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
   page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: '프로젝트 보관', exact: true }).click();
   await expect(page.locator('.project-row').filter({ hasText: '새 게임 v2' })).toHaveCount(0);
+  await page.getByRole('button', { name: '프로젝트 목록', exact: true }).click();
   await page.getByRole('button', { name: '보관된 프로젝트', exact: true }).click();
   await page.locator('.project-row').filter({ hasText: '새 게임 v2' }).click();
+  await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
   page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: '보관 해제', exact: true }).click();
   await page.reload();
-  await expect(page.locator('.project-row').filter({ hasText: '새 게임 v2' })).toHaveCount(1);
+  await expect(page.locator('h1')).toHaveText('새 게임 v2');
   await expect(page.locator('.task').filter({ hasText: '점프 기능' })).toContainText('새 게임 v2');
 });
 

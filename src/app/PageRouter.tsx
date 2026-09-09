@@ -1,3 +1,5 @@
+import { NotFoundPage } from '../pages/NotFoundPage';
+import { ProjectDetailPage } from '../pages/ProjectDetailPage';
 import type { ComponentType } from 'react';
 import { HomePage } from '../pages/HomePage';
 import { JournalsPage } from '../pages/JournalsPage';
@@ -14,7 +16,10 @@ const pages: Record<PageId, ComponentType> = {
   자료실: LibraryPage,
 };
 export function PageRouter() {
-  const { page } = useWorkspace();
+  const { page, projectId, notFound, entryKey } = useWorkspace();
+  if (notFound) return <NotFoundPage />;
+  if (page === '프로젝트' && projectId)
+    return <ProjectDetailPage key={entryKey} projectId={projectId} />;
   const Page = pages[page];
-  return <Page />;
+  return <Page key={entryKey} />;
 }

@@ -4,14 +4,14 @@
   background: #f0f7f3;
   border-radius: 7px;
   color: #67947d;
-  font-size: 10px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   gap: 7px;
 }
 .service-summary > span:last-child {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 12px;
   color: #91ae9e;
 }
 .service-row {
@@ -32,12 +32,12 @@
 }
 .service-row strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
 }
 .service-row small {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   color: #969eab;
   margin-top: 4px;
 }
@@ -47,7 +47,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 12px;
   color: #9da3ad;
 }
 .service-version span {

@@ -15,7 +15,8 @@ import { useProjects } from '../features/projects/ProjectsProvider';
 export function HomePage() {
   const dashboard = useDashboard();
   const { editing, items } = dashboard;
-  const { filter, setFilter, query, setQuery, setToast, onDetail, resetSearch } = useWorkspace();
+  const { filter, setFilter, query, setQuery, setToast, onDetail, resetSearch, openProject } =
+    useWorkspace();
   const { tasks, changeStatus } = useTasks();
   const { journals } = useJournals();
   const { activeProjects } = useProjects();
@@ -120,6 +121,7 @@ export function HomePage() {
                 journals={journals}
                 onTaskChange={changeStatus}
                 onDetail={onDetail}
+                onProjectOpen={openProject}
               />
             </WidgetFrame>
           );

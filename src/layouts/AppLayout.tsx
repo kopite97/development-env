@@ -1,12 +1,15 @@
 import { Code2 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useWorkspace } from '../app/WorkspaceProvider';
 import { Button, Modal } from '../components/ui';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 export function AppLayout({ children }: { children: ReactNode }) {
   const [mobileNav, setMobileNav] = useState(false);
-  const { detail, closeDetail } = useWorkspace();
+  const { detail, closeDetail, entryKey } = useWorkspace();
+  useEffect(() => {
+    setMobileNav(false);
+  }, [entryKey]);
   return (
     <div className="app-shell">
       <Sidebar mobileNav={mobileNav} onNavigate={() => setMobileNav(false)} />

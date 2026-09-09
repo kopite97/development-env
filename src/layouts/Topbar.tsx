@@ -2,7 +2,7 @@ import { ChevronRight, Home, Menu } from 'lucide-react';
 import { useWorkspace } from '../app/WorkspaceProvider';
 import { Button } from '../components/ui';
 export function Topbar({ onMenu }: { onMenu: () => void }) {
-  const { page } = useWorkspace();
+  const { page, projectId } = useWorkspace();
   return (
     <header className="topbar">
       <div className="breadcrumb">
@@ -11,7 +11,10 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         </Button>
         <Home size={15} />
         <ChevronRight size={13} />
-        <span>{page}</span>
+        <span>
+          {page}
+          {projectId ? ' / 상세' : ''}
+        </span>
       </div>
       <div className="topbar-right">
         <span className="private-label">

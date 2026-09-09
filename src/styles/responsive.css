@@ -11,11 +11,8 @@
   .task {
     padding: 15px 12px;
   }
-  .task h4 {
-    font-size: 12px;
-  }
   .task > small {
-    font-size: 10px;
+    font-size: 12px;
   }
   .project-row {
     padding: 18px 0;
@@ -49,7 +46,7 @@
     font-size: 12px;
   }
   .widget-header .badge {
-    font-size: 8px;
+    font-size: 12px;
   }
   .kanban {
     gap: 6px;
@@ -66,7 +63,7 @@
     padding-right: 15px;
   }
   .stats span {
-    font-size: 9px;
+    font-size: 12px;
   }
   .project-progress {
     width: 60px;
@@ -90,10 +87,10 @@
     gap: 6px;
   }
   .service-row strong {
-    font-size: 10px;
+    font-size: 12px;
   }
   .service-summary {
-    font-size: 9px;
+    font-size: 12px;
   }
 }
 @media (max-width: 950px) {
@@ -170,7 +167,7 @@
     font-size: 25px;
   }
   .page-heading p {
-    font-size: 11px;
+    font-size: 12px;
   }
   .heading-actions {
     width: 100%;
@@ -181,13 +178,13 @@
     gap: 10px;
   }
   .welcome-strip > .badge {
-    font-size: 8px;
+    font-size: 12px;
   }
   .welcome-strip div > span {
-    font-size: 10px;
+    font-size: 12px;
   }
   .welcome-strip strong {
-    font-size: 11px;
+    font-size: 12px;
   }
   .welcome-icon {
     width: 35px;
@@ -203,7 +200,7 @@
     gap: 1px;
   }
   .tabs button {
-    font-size: 10px;
+    font-size: 12px;
     padding: 8px 10px;
   }
   .search {
@@ -224,28 +221,22 @@
     gap: 7px;
     padding: 0 12px 14px;
   }
-  .task h4 {
-    font-size: 10px;
-  }
   .task > small {
-    font-size: 8px;
+    font-size: 12px;
     overflow-wrap: anywhere;
   }
   .stats span {
-    font-size: 10px;
+    font-size: 12px;
   }
   .project-progress {
     width: 85px;
   }
-  .widget-small .kanban {
-    grid-template-columns: 1fr;
-  }
   .page-footer {
-    font-size: 8px;
+    font-size: 12px;
     gap: 10px;
   }
   .add-widget-area {
-    font-size: 10px;
+    font-size: 12px;
     gap: 5px;
   }
   .add-widget-area strong {
@@ -267,10 +258,10 @@
     padding: 14px;
   }
   .edit-banner {
-    font-size: 10px;
+    font-size: 12px;
   }
   .edit-banner .button {
-    font-size: 10px;
+    font-size: 12px;
   }
   .sidebar-bottom {
     padding-top: 20px;
@@ -280,5 +271,34 @@
   * {
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 680px) {
+  button,
+  .button,
+  input,
+  select {
+    min-height: 44px;
+  }
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  .tabs,
+  .heading-actions,
+  .modal-actions,
+  .task-toolbar {
+    flex-wrap: wrap;
+  }
+  .search {
+    max-width: 100%;
+  }
+  .link-actions {
+    flex-wrap: wrap;
+  }
+  .modal {
+    max-width: calc(100vw - 24px);
   }
 }
