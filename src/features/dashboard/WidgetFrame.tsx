@@ -1,8 +1,8 @@
 import { ArrowDown, ArrowUp, GripVertical, Settings2, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Badge, Button } from '../../components/ui';
+import { Badge, Button } from '../../shared/ui/controls';
 import type { Widget } from './model';
-import { registry } from './registry';
+import { widgetCatalog as registry } from './widgetCatalog';
 
 type Props = {
   widget: Widget;

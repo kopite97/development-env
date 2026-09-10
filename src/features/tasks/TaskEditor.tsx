@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Button, Field, Modal } from '../../components/ui';
-import type { Task } from '../../data/demo';
-import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { Button, Field, Modal } from '../../shared/ui/controls';
+import { type Task } from './model';
+import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import type { Project } from '../projects/model';
 import { ProjectSelect } from '../projects/ProjectSelect';
 export function TaskEditor({

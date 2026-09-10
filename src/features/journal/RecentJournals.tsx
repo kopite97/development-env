@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
-import { type Scope } from '../../data/demo';
-import type { DetailHandler } from '../../types/ui';
+import { type Scope } from '../projects/scope';
+import type { DetailHandler } from '../../shared/types/ui';
 import { journalDate, type JournalEntry } from './model';
 export function RecentJournals({
   scope,

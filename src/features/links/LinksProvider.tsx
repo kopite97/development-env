@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { usePersistedState } from '../../hooks/usePersistedState';
+import { usePersistedState } from '../../shared/hooks/usePersistedState';
 import { initialLinks, isLinks, moveLink, type QuickLink } from './model';
 function useLinksStore() {
   const [links, save, error] = usePersistedState('devspace.links.v1', initialLinks, isLinks);

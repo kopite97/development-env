@@ -1,4 +1,4 @@
-import type { Scope } from '../../data/demo';
+import { type Scope } from '../projects/scope';
 export const widgetTypes = [
   'overview',
   'board',

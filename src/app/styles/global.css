@@ -1,0 +1,7 @@
+/* Import order is deliberate: responsive overrides must stay last. */
+@import '../../shared/styles/base.css';
+@import '../../shared/styles/ui.css';
+@import './layout.css';
+@import '../../features/dashboard/styles.css';
+@import './features.css';
+@import './responsive.css';

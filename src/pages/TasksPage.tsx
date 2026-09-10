@@ -1,10 +1,14 @@
-import { useWorkspace } from '../app/WorkspaceProvider';
-import { PageScaffold } from '../layouts/PageScaffold';
+import type { PagePresentation, SearchInputs } from './pageInputs';
+import { PageScaffold } from '../shared/ui/PageScaffold';
 import { TaskManager } from '../features/tasks/TaskManager';
-export function TasksPage() {
-  const { filter, query, resetSearch } = useWorkspace();
+export function TasksPage({
+  scaffold,
+  filter,
+  query,
+  onReset: resetSearch,
+}: PagePresentation & SearchInputs) {
   return (
-    <PageScaffold>
+    <PageScaffold {...scaffold}>
       <div className="content-panel">
         <TaskManager scope={filter} search={query} onReset={resetSearch} />
       </div>

@@ -1,4 +1,4 @@
-import { Field } from '../../components/ui';
+import { Field } from '../../shared/ui/controls';
 import type { Project } from './model';
 export function ProjectSelect({
   projects,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button, Field, Modal } from '../../components/ui';
-import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { Button, Field, Modal } from '../../shared/ui/controls';
+import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import type { Project } from './model';
 export function ProjectEditor({
   existing,

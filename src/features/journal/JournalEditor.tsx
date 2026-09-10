@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Button, Field, Modal } from '../../components/ui';
+import { Button, Field, Modal } from '../../shared/ui/controls';
 import { useProjects } from '../projects/ProjectsProvider';
 import { ProjectSelect } from '../projects/ProjectSelect';
-import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import type { JournalEntry } from './model';
 
 export function JournalEditor({

@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { usePersistedState } from '../../hooks/usePersistedState';
-import { initialProjects, isProjects, type Project } from './model';
+import { usePersistedState } from '../../shared/hooks/usePersistedState';
+import { isProjects, type Project } from './model';
+import { initialProjects } from './fixtures';
 function useProjectsStore() {
   const [projects, save, error] = usePersistedState(
     'devspace.projects.v1',

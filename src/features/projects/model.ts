@@ -1,4 +1,5 @@
-import { projects as demoProjects, type Scope } from '../../data/demo';
+import { projects as demoProjects } from './fixtures';
+import { type Scope } from './scope';
 export type Project = {
   id: string;
   name: string;
@@ -11,11 +12,10 @@ export type Project = {
   repositoryUrl: string;
   archived: boolean;
 };
-export const initialProjects: Project[] = demoProjects.map((p) => ({
-  ...p,
-  repositoryUrl: '',
-  archived: false,
-}));
+// Old task records identify seeded projects by their original names.
+export function legacyProjectId(name: string) {
+  return demoProjects.find((project) => project.name === name)?.id;
+}
 export function isProjects(value: unknown): value is Project[] {
   return (
     Array.isArray(value) &&

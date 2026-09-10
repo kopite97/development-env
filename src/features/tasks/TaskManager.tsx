@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { Button, EmptyState, Modal } from '../../components/ui';
-import type { Scope, Task } from '../../data/demo';
+import { Button, EmptyState, Modal } from '../../shared/ui/controls';
+import { type Scope } from '../projects/scope';
+import { type Task } from './model';
 import { useProjects } from '../projects/ProjectsProvider';
 import { useTasks } from './TasksProvider';
 import { TaskBoard } from './TaskBoard';

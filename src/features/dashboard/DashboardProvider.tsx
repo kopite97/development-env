@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { usePersistedState } from '../../hooks/usePersistedState';
-import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { usePersistedState } from '../../shared/hooks/usePersistedState';
+import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import { defaultLayout, isLayout, moveWidget, type Widget } from './model';
 function useDashboardStore() {
   const [layout, save, error] = usePersistedState('devspace.layout.v1', defaultLayout, isLayout);

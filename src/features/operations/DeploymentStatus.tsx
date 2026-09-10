@@ -1,7 +1,7 @@
 import { Circle, GitBranch, Globe, Server } from 'lucide-react';
-import { Badge, EmptyState } from '../../components/ui';
-import { type Scope } from '../../data/demo';
-import type { DetailHandler } from '../../types/ui';
+import { Badge, EmptyState } from '../../shared/ui/controls';
+import { type Scope } from '../projects/scope';
+import type { DetailHandler } from '../../shared/types/ui';
 export function DeploymentStatus({ scope, onDetail }: { scope: Scope; onDetail: DetailHandler }) {
   if (scope === 'unity')
     return (

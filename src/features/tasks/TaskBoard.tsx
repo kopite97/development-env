@@ -1,7 +1,8 @@
 import { Flag } from 'lucide-react';
 import { useState } from 'react';
-import { Badge } from '../../components/ui';
-import { type Scope, type Task } from '../../data/demo';
+import { Badge } from '../../shared/ui/controls';
+import { type Scope } from '../projects/scope';
+import { type Task } from './model';
 export function TaskBoard({
   scope,
   tasks,

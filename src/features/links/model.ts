@@ -1,4 +1,4 @@
-import type { Scope } from '../../data/demo';
+import { type Scope } from '../projects/scope';
 export type QuickLink = { id: string; label: string; desc: string; url: string; scope: Scope };
 export function validUrl(value: string) {
   try {

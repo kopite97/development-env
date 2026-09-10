@@ -134,3 +134,14 @@
 .project-facts .progress {
   margin-top: 8px;
 }
+.project-progress {
+  width: 100px;
+  margin-left: auto;
+}
+.project-progress > span {
+  display: block;
+  font-size: 12px;
+  text-align: right;
+  color: #9993b9;
+  margin-bottom: 7px;
+}

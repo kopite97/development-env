@@ -1,27 +1,38 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Pencil } from 'lucide-react';
-import { useWorkspace } from '../app/WorkspaceProvider';
-import { Button, EmptyState } from '../components/ui';
-import { PageScaffold } from '../layouts/PageScaffold';
+import { useEffect, useRef } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import type { PagePresentation } from './pageInputs';
+import type { DetailHandler } from '../shared/types/ui';
+import { Button, EmptyState } from '../shared/ui/controls';
+import { PageScaffold } from '../shared/ui/PageScaffold';
 import { useProjects } from '../features/projects/ProjectsProvider';
-import { ProjectEditor } from '../features/projects/ProjectEditor';
+import { useProjectEditor } from '../features/projects/useProjectEditor';
 import { ProjectSummary } from '../features/projects/ProjectSummary';
 import { useTasks } from '../features/tasks/TasksProvider';
 import { TaskBoard } from '../features/tasks/TaskBoard';
 import { useJournals } from '../features/journal/JournalsProvider';
 import { RecentJournals } from '../features/journal/RecentJournals';
-export function ProjectDetailPage({ projectId }: { projectId: string }) {
-  const { closeProject, onDetail, setShowArchivedProjects } = useWorkspace();
-  const { projects, upsert, archive } = useProjects();
+export function ProjectDetailPage({
+  scaffold,
+  projectId,
+  onBack: closeProject,
+  onDetail,
+  onArchivedChange: setShowArchivedProjects,
+}: PagePresentation & {
+  projectId: string;
+  onBack: () => void;
+  onDetail: DetailHandler;
+  onArchivedChange: (archived: boolean) => void;
+}) {
+  const { projects } = useProjects();
   const { tasks, changeStatus } = useTasks();
   const { journals } = useJournals();
-  const [editing, setEditing] = useState(false);
   const region = useRef<HTMLDivElement>(null);
   useEffect(() => {
     region.current?.focus();
     window.scrollTo(0, 0);
   }, []);
   const project = projects.find((p) => p.id === projectId);
+  const editor = useProjectEditor(project, setShowArchivedProjects);
   const projectTasks = tasks.filter((t) => t.projectId === projectId);
   const projectJournals = journals
     .filter((j) => j.projectId === projectId)
@@ -35,19 +46,15 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   return (
     <div ref={region} tabIndex={-1} className="project-detail" aria-label="프로젝트 상세 페이지">
       <PageScaffold
+        {...scaffold}
         title={project?.name ?? '프로젝트를 찾을 수 없어요'}
         description="프로젝트 정보와 연결된 작업·개발 일지를 확인하세요."
-        showOverview={false}
-        showFilters={false}
+        overview={null}
+        filters={null}
         actions={
           <div className="heading-actions">
             {back}
-            {project && (
-              <Button onClick={() => setEditing(true)}>
-                <Pencil size={16} />
-                프로젝트 편집
-              </Button>
-            )}
+            {editor.action}
           </div>
         }
       >
@@ -82,22 +89,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
                 <EmptyState title="연결된 개발 일지가 없어요" />
               )}
             </section>
-            {editing && (
-              <ProjectEditor
-                existing={project}
-                onClose={() => setEditing(false)}
-                onSave={(p) => {
-                  const saved = upsert(p);
-                  if (saved) setShowArchivedProjects(p.archived);
-                  return saved;
-                }}
-                onArchive={(id, archived) => {
-                  const saved = archive(id, archived);
-                  if (saved) setShowArchivedProjects(archived);
-                  return saved;
-                }}
-              />
-            )}
+            {editor.dialog}
           </>
         )}
       </PageScaffold>

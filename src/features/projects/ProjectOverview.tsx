@@ -1,7 +1,7 @@
 import { Box, ChevronRight, Gamepad2, Globe, Server, type LucideIcon } from 'lucide-react';
-import { EmptyState, Progress } from '../../components/ui';
+import { EmptyState, Progress } from '../../shared/ui/controls';
 import type { ReactNode } from 'react';
-import { type Scope, type Task } from '../../data/demo';
+import { type Scope } from './scope';
 import type { Project } from './model';
 export const projectIcons: Record<string, LucideIcon> = {
   forest: Gamepad2,
@@ -20,7 +20,7 @@ export function ProjectOverview({
   archived = false,
 }: {
   scope: Scope;
-  tasks: Task[];
+  tasks: { scope: Exclude<Scope, 'all'>; status: 'todo' | 'doing' | 'done' }[];
   onOpen: (id: string) => void;
   search?: string;
   projects: Project[];

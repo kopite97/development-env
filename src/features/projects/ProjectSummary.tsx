@@ -1,5 +1,5 @@
-import { Badge, Progress } from '../../components/ui';
-import { scopes } from '../../data/demo';
+import { Badge, Progress } from '../../shared/ui/controls';
+import { scopes } from './scope';
 import type { Project } from './model';
 function repositoryHref(value: string) {
   try {

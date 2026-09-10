@@ -1,10 +1,10 @@
 import { Check, Plus } from 'lucide-react';
 import { useState } from 'react';
-import { Button, Field, Modal } from '../../components/ui';
-import { scopes, type Scope } from '../../data/demo';
-import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { Button, Field, Modal } from '../../shared/ui/controls';
+import { scopes, type Scope } from '../projects/scope';
+import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import { widgetTypes, type Widget, type WidgetType } from './model';
-import { registry } from './registry';
+import { widgetCatalog as registry } from './widgetCatalog';
 export function WidgetEditor({
   existing,
   onSave,

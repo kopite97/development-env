@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { usePersistedState } from '../../hooks/usePersistedState';
-import { initialJournals, isJournals, type JournalEntry } from './model';
+import { usePersistedState } from '../../shared/hooks/usePersistedState';
+import { isJournals, type JournalEntry } from './model';
+import { initialJournals } from './fixtures';
 import { useProjects } from '../projects/ProjectsProvider';
 function useJournalsStore() {
   const [stored, save, error] = usePersistedState(

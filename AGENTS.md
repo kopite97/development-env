@@ -1,14 +1,19 @@
-# 개발 수칙
+# AGENTS.md
 
-- 모든 변경은 유지보수와 확장성을 고려한다. 구조 기준은 `docs/ARCHITECTURE.md`를 따른다.
-- `App.tsx`는 앱 구성만 담당한다. 페이지·레이아웃·기능·데이터 처리의 책임을 분리한다.
-- 기존 공용 UI와 디자인 토큰을 먼저 사용하고, 반복되는 컴포넌트·CSS는 공통화한다.
-- 상태와 저장 로직은 기능별로 관리하며, 서버 API로 교체하기 쉽게 구성한다.
-- 기존 기능과 저장 데이터의 호환성을 유지하고, 저장 실패와 미저장 변경을 보호한다.
-- 변경 범위에 맞게 빌드·테스트·포맷을 검증한다.
-- 작업 결과는 `docs/result/`에 별도 기록한다.
-- 결과 파일명은 작업 순서를 알 수 있도록 `NNN-작업명.md` 형식으로 작성한다.
-- 결과 문서에는 작업 내역과 추가 사항만 간결하게 기록한다.
-- 추가 사항이 없으면 `추가 사항 없음`으로 표시한다.
-- 결과 문서는 구현 완료 후 작성하고 검증 결과를 함께 남긴다.
-- 프론트 구현 과정에서 API가 필요한 내역은 `ARCHITECTURE.md`에 간결하게 작성한다.
+Before making changes, identify and follow all AGENTS.md files governing the files you modify.
+
+More deeply nested AGENTS.md files take precedence when instructions conflict.
+
+## Map
+
+- `src/AGENTS.md` — application source
+- `src/app/APP.md` — application composition
+- `src/pages/PAGES.md` — route-level page composition
+- `src/features/FEATURES.md` — user-facing features
+- `src/shared/SHARED.md` — reusable feature-agnostic code
+- `docs/AGENTS.md` — project documentation
+- `docs/plans/PLANS.md` — implementation and migration plans
+- `docs/decisions/DECISIONS.md` — architectural and technical decisions
+- `docs/architecture/ARCHITECTURE.md` — system and application architecture
+- `docs/guides/GUIDES.md` — development and operational guides
+- `docs/references/REFERENCES.md` — visual and external reference materials

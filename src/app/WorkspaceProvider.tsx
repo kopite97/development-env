@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { Scope } from '../data/demo';
+import { type Scope } from '../features/projects/scope';
 import { useDashboard } from '../features/dashboard/DashboardProvider';
-import { confirmNavigation } from '../hooks/navigationGuard';
-import type { DetailHandler } from '../types/ui';
+import { confirmNavigation } from '../shared/lib/navigationGuard';
+import type { DetailHandler } from '../shared/types/ui';
 import type { PageId } from './navigation';
 import { pagePaths, projectPath } from './routes';
 import { useBrowserNavigation } from './useBrowserNavigation';

@@ -1,5 +1,17 @@
-import { projects as demoProjects, type Task } from '../../data/demo';
-import type { Project } from '../projects/model';
+import type { Scope } from '../projects/scope';
+import { legacyProjectId, type Project } from '../projects/model';
+export type Task = {
+  id: string;
+  title: string;
+  project: string;
+  scope: Exclude<Scope, 'all'>;
+  status: 'todo' | 'doing' | 'done';
+  priority: '높음' | '보통';
+  tag: string;
+  projectId?: string;
+  description?: string;
+  deletedAt?: string | null;
+};
 export const validTasks = (v: unknown): v is Task[] =>
   Array.isArray(v) &&
   v.every(
@@ -22,7 +34,7 @@ export const validTasks = (v: unknown): v is Task[] =>
 export function resolveTask(task: Task, projects: Project[]): Task {
   const projectId =
     task.projectId ??
-    demoProjects.find((p) => p.name === task.project)?.id ??
+    legacyProjectId(task.project) ??
     projects.find((p) => p.name === task.project)?.id;
   const project = projects.find((p) => p.id === projectId);
   return {

@@ -1,4 +1,3 @@
-import { journal, projects } from '../../data/demo';
 export type JournalEntry = {
   id: string;
   title: string;
@@ -8,13 +7,6 @@ export type JournalEntry = {
   body: string;
   createdAt: string;
 };
-export const initialJournals: JournalEntry[] = journal.map((entry, index) => ({
-  ...entry,
-  id: `demo-journal-${index}`,
-  projectId: projects.find((p) => p.name === entry.project)!.id,
-  scope: entry.scope as JournalEntry['scope'],
-  createdAt: `2026-${entry.date.replace('.', '-')}T00:00:00Z`,
-}));
 export function isJournals(value: unknown): value is JournalEntry[] {
   return (
     Array.isArray(value) &&

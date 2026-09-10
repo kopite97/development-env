@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { initialTasks, type Task } from '../../data/demo';
-import { usePersistedState } from '../../hooks/usePersistedState';
+import { initialTasks } from './fixtures';
+import { type Task } from './model';
+import { usePersistedState } from '../../shared/hooks/usePersistedState';
 import { useProjects } from '../projects/ProjectsProvider';
 import { resolveTask, validTasks } from './model';
 function useTasksStore() {

@@ -1,0 +1,52 @@
+import type { Project } from './model';
+export const projects = [
+  {
+    id: 'forest',
+    name: 'Forest of Echoes',
+    subtitle: '탐험과 발견이 있는 작은 숲',
+    scope: 'unity',
+    stack: 'Unity · C#',
+    progress: 68,
+    color: 'forest',
+    milestone: '플레이 가능한 데모',
+    tasks: 12,
+  },
+  {
+    id: 'orbit',
+    name: 'Orbit Runner',
+    subtitle: '궤도를 달리는 아케이드 게임',
+    scope: 'unity',
+    stack: 'Unity · C#',
+    progress: 32,
+    color: 'orbit',
+    milestone: '코어 게임플레이 완성',
+    tasks: 8,
+  },
+  {
+    id: 'api',
+    name: 'Devspace API',
+    subtitle: '프로젝트를 연결하는 백엔드',
+    scope: 'server',
+    stack: 'Java · Spring Boot',
+    progress: 84,
+    color: 'api',
+    milestone: 'v1.2 배포',
+    tasks: 5,
+  },
+  {
+    id: 'web',
+    name: 'Devspace Web',
+    subtitle: '나만의 개발 작업실',
+    scope: 'server',
+    stack: 'React · TypeScript',
+    progress: 56,
+    color: 'web',
+    milestone: '대시보드 UI',
+    tasks: 7,
+  },
+] as const;
+export const initialProjects: Project[] = projects.map((p) => ({
+  ...p,
+  repositoryUrl: '',
+  archived: false,
+}));

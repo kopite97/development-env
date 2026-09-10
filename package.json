@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
+    "check:boundaries": "node tools/check-boundaries.mjs",
+    "check:docs": "node tools/check-doc-links.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:e2e": "playwright test"

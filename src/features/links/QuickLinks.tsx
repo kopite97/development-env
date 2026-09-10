@@ -1,6 +1,6 @@
 import { ArrowUpRight, Box, Code2, Github, Globe } from 'lucide-react';
-import type { Scope } from '../../data/demo';
-import { Button, EmptyState } from '../../components/ui';
+import { type Scope } from '../projects/scope';
+import { Button, EmptyState } from '../../shared/ui/controls';
 import { useLinks } from './LinksProvider';
 import type { QuickLink } from './model';
 const linkIcons = { github: Github, unity: Box, spring: Code2, react: Globe };

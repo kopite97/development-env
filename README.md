@@ -22,35 +22,38 @@ npm run dev
 - 개발일지 작성·목록·홈 반영 및 브라우저 저장.
 - 낮은 화면에서도 접근 가능한 사이드바 스크롤, 배치·일지 저장 실패 시 초안 유지·재시도, 미저장 변경 이탈 확인.
 
-초기 데이터는 예시이며 프로젝트·태스크·일지를 직접 추가할 수 있습니다. 프로젝트는 편집·보관/해제, 태스크는 편집·삭제/휴지통 복구를 지원합니다. 서비스 상태는 실제 모니터링 결과가 아닙니다. 서버·로그인·여러 기기 동기화는 아직 지원하지 않습니다. 개인 링크 작성과 자유 높이 조절은 후속 기능입니다.
+초기 데이터는 예시이며 프로젝트·태스크·일지·링크를 직접 추가할 수 있습니다. 프로젝트는 편집·보관/해제, 태스크는 편집·삭제/휴지통 복구를 지원합니다. 서비스 상태는 실제 모니터링 결과가 아닙니다. 서버·로그인·여러 기기 동기화는 아직 지원하지 않습니다. 자유 높이 조절은 후속 기능입니다.
 
-안정화 작업의 우선순위와 완료·대기 상태는 [프론트엔드 안정화 목록](docs/FRONTEND-STABILIZATION.md)에서 확인할 수 있습니다.
+작업 실행 순서와 상태는 [계획 목록](docs/plans/README.md), 남은 기능은 [프론트엔드 안정화 계획](docs/plans/frontend-stabilization.md), 이전 결과는 [과거 기록](docs/references/history/frontend-stabilization-history.md)에서 확인할 수 있습니다.
 
 ## 유지보수 구조
 
-| 경로                                      | 역할                                                      |
-| ----------------------------------------- | --------------------------------------------------------- |
-| `src/components/ui.tsx`                   | Button, Badge, Modal, Field, Progress, EmptyState 공용 UI |
-| `src/styles/tokens.css`                   | 색상·반경·그림자 등 공통 디자인 토큰                      |
-| `src/App.tsx` / `src/app/`                | 앱 조합, Provider 구성, 페이지 선택과 공통 화면 상태      |
-| `src/layouts/` / `src/pages/`             | 공통 레이아웃과 페이지 5종                                |
-| `src/styles/global.css`                   | 역할별 CSS import 진입점                                  |
-| `src/features/*/styles.css`               | 기능별 스타일                                             |
-| `src/features/dashboard/model.ts`         | 배치 타입·기본값·검증·순서 이동                           |
-| `src/features/dashboard/registry.tsx`     | 위젯 메타데이터와 기능 컴포넌트 연결                      |
-| `src/features/*/*Provider.tsx`            | 배치·태스크·일지의 공유 상태와 저장                       |
-| `src/features/dashboard/WidgetEditor.tsx` | 추가·설정 공통 편집기                                     |
-| `src/hooks/usePersistedState.ts`          | 검증 가능한 브라우저 저장 어댑터                          |
-| `src/data/demo.ts`                        | 화면과 분리한 예시 데이터                                 |
-| `docs/API.md`                             | 서버 API 목록, 계약 예시, 연결 및 확장 순서               |
+| 경로                                                | 역할                                            |
+| --------------------------------------------------- | ----------------------------------------------- |
+| `src/shared/ui/`                                    | 공용 컨트롤과 기능 중립적인 PageScaffold        |
+| `src/shared/styles/tokens.css`                      | 공통 디자인 토큰                                |
+| `src/app/`                                          | 앱 조합, Provider 구성, 라우팅과 공통 화면 상태 |
+| `src/app/layouts/` / `src/pages/`                   | 앱 레이아웃과 경로별 기능 조합                  |
+| `src/app/styles/global.css`                         | 역할별 CSS import 진입점                        |
+| `src/features/*/styles.css`                         | 기능별 스타일                                   |
+| `src/features/dashboard/model.ts`                   | 배치 타입·기본값·검증·순서 이동                 |
+| `src/features/dashboard/widgetCatalog.ts`           | 위젯 제목·설명·아이콘                           |
+| `src/pages/home/widgetRenderers.tsx`                | 위젯과 각 기능의 화면 연결                      |
+| `src/features/*/*Provider.tsx`                      | 배치·태스크·일지의 공유 상태와 저장             |
+| `src/features/dashboard/WidgetEditor.tsx`           | 추가·설정 공통 편집기                           |
+| `src/shared/hooks/usePersistedState.ts`             | 검증 가능한 브라우저 저장 어댑터                |
+| `src/features/{projects,tasks,journal}/fixtures.ts` | 기능별 예시 데이터                              |
+| `docs/references/api/backend-api-contract.md`       | 미구현 서버 API 설계 계약과 후속 제안           |
 
-위젯 확장 시 `widgetTypes`에 타입을 추가하고 `registry`에 제목·설명·아이콘·컴포넌트를 등록합니다. 편집 카탈로그는 자동으로 새 항목을 표시합니다. 저장 스키마 변경 시 저장 키/스키마 버전과 마이그레이션을 함께 변경하세요. 신규 UI는 기존 공용 컴포넌트와 토큰을 먼저 사용하고 반복 패턴은 공용 컴포넌트로 추출합니다.
+위젯 확장 시 `widgetTypes`, `widgetCatalog`, `widgetRenderers`를 함께 갱신합니다. 저장 형식 변경에는 별도 호환·마이그레이션 검토가 필요합니다. 상세 절차는 아래 개발 가이드에 정리했습니다.
 
-파일별 책임, 데이터 흐름, CSS 소유권, 신규 페이지·위젯 추가 절차는 [구조와 유지보수 기준](docs/ARCHITECTURE.md)을 참고하세요.
+파일별 책임, 데이터 흐름과 CSS 소유권은 [프론트엔드 아키텍처](docs/architecture/frontend.md), 실행·검증 절차는 [개발 가이드](docs/guides/development.md)를 참고하세요.
 
 ## 검증
 
 ```sh
+npm run check:boundaries
+npm run check:docs
 npm run build
 npm test
 npm run format:check

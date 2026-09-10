@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { initialTasks } from '../../data/demo';
-import { initialProjects } from '../projects/model';
+import { initialTasks } from './fixtures';
+import { initialProjects } from '../projects/fixtures';
 import { resolveTask, validTasks } from './model';
 describe('legacy task compatibility', () => {
   it('preserves existing tasks while resolving renamed projects by original id', () => {

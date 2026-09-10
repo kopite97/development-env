@@ -53,3 +53,6 @@
 .service-version span {
   margin-left: auto;
 }
+.service-row > .badge {
+  margin-left: auto;
+}

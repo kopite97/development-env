@@ -1,4 +1,4 @@
-import type { Scope } from '../data/demo';
+import { type Scope } from '../features/projects/scope';
 import type { PageId } from './navigation';
 export const pagePaths: Record<PageId, string> = {
   '나의 홈': '/',
