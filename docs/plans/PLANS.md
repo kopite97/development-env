@@ -30,6 +30,10 @@ Agents may update plan statuses as work progresses, with one exception:
 - Update `README.md` in the same change whenever a plan is added, reordered, or its status changes.
 - Treat the `active` plan as the current source of implementation work.
 - At most one plan may be `active` at a time.
+- Plan filenames must use a sequential numeric prefix, such as `PLAN-0001-<name>.md`.
+- Assign each new plan the next available number, based on the highest existing plan number.
+- Plan numbers must be unique and must not be reused, including numbers from `completed` or `rejected` plans.
+- Reordering plans in `README.md` does not change their assigned numbers.
 
 ## Status Transitions
 
