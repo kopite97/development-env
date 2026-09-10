@@ -6,16 +6,19 @@ export function RecentJournals({
   scope,
   onDetail,
   journals,
+  limit = 3,
 }: {
   scope: Scope;
   journals: JournalEntry[];
   onDetail: DetailHandler;
+  limit?: number;
 }) {
   return (
     <div className="journal-list">
       {journals
         .filter((j) => scope === 'all' || j.scope === scope)
-        .slice(0, 3)
+        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+        .slice(0, limit)
         .map((j) => (
           <button key={j.id} className="journal-row" onClick={() => onDetail(j.title, j.body)}>
             <span className="journal-date">{journalDate(j)}</span>

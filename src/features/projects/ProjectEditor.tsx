@@ -103,7 +103,7 @@ export function ProjectEditor({
               onChange={(e) => change('progress', Number(e.target.value))}
             />
           </Field>
-          <Field label="다음 목표">
+          <Field label="프로젝트 목표 메모">
             <input
               maxLength={200}
               value={form.milestone}

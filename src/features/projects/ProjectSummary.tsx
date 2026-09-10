@@ -27,14 +27,14 @@ export function ProjectSummary({ project }: { project: Project }) {
           <dd>{project.stack}</dd>
         </div>
         <div>
-          <dt>현재 목표</dt>
+          <dt>프로젝트 목표 메모</dt>
           <dd>{project.milestone || '등록된 목표가 없어요.'}</dd>
         </div>
         <div>
           <dt>진행률 (직접 설정)</dt>
           <dd>
             <span>{project.progress}%</span>
-            <Progress value={project.progress} />
+            <Progress value={project.progress} label={`${project.name} 진행률`} />
           </dd>
         </div>
         <div>

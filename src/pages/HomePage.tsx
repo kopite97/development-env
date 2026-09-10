@@ -4,7 +4,7 @@ import { useTasks } from '../features/tasks/TasksProvider';
 import { useProjects } from '../features/projects/ProjectsProvider';
 import type { DetailHandler } from '../shared/types/ui';
 import type { PagePresentation, SearchInputs, SearchActions } from './pageInputs';
-import { widgetRenderers } from './home/widgetRenderers';
+import { renderProjectWidget } from './home/widgetRenderers';
 
 export function HomePage({
   scaffold,
@@ -25,7 +25,7 @@ export function HomePage({
   }) {
   const { tasks } = useTasks();
   const { journals } = useJournals();
-  const { activeProjects } = useProjects();
+  const { projects } = useProjects();
   return (
     <DashboardWorkspace
       scaffold={scaffold}
@@ -39,11 +39,11 @@ export function HomePage({
         onNotify('');
       }}
       renderWidget={(widget) =>
-        widgetRenderers[widget.type]({
+        renderProjectWidget({
           widget,
           tasks,
           journals,
-          projects: activeProjects,
+          projects,
           onDetail,
           onProjectOpen,
         })

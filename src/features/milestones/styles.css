@@ -40,3 +40,25 @@
 .milestone .muted {
   font-size: 12px;
 }
+
+.milestone-form {
+  display: grid;
+  gap: 16px;
+}
+.milestone-content {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.milestone-title {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+.milestone-content > .muted {
+  display: block;
+  margin-bottom: 8px;
+}
+.milestone-icon {
+  flex-shrink: 0;
+}

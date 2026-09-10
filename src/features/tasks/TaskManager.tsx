@@ -11,21 +11,30 @@ export function TaskManager({
   scope,
   search = '',
   onReset,
+  projectId,
+  limit,
 }: {
   scope: Scope;
   search?: string;
   onReset?: () => void;
+  projectId?: string;
+  limit?: number;
 }) {
   const { tasks, deletedTasks, upsert, remove, restore, changeStatus, error } = useTasks();
   const { projects } = useProjects();
   const [editor, setEditor] = useState<Task | 'new' | null>(null);
   const [trash, setTrash] = useState(false);
-  const visible = tasks.filter(
-    (t) =>
-      (scope === 'all' || t.scope === scope) &&
-      `${t.title} ${t.project}`.toLowerCase().includes(search.toLowerCase()),
+  const visible = tasks
+    .filter(
+      (t) =>
+        (scope === 'all' || t.scope === scope) &&
+        (!projectId || t.projectId === projectId) &&
+        `${t.title} ${t.project}`.toLowerCase().includes(search.toLowerCase()),
+    )
+    .slice(0, limit);
+  const removed = deletedTasks.filter(
+    (t) => (scope === 'all' || t.scope === scope) && (!projectId || t.projectId === projectId),
   );
-  const removed = deletedTasks.filter((t) => scope === 'all' || t.scope === scope);
   return (
     <>
       <div className="feature-actions">

@@ -5,6 +5,7 @@ import { JournalsProvider } from '../features/journal/JournalsProvider';
 import { TasksProvider } from '../features/tasks/TasksProvider';
 import { WorkspaceProvider } from './WorkspaceProvider';
 import { ProjectsProvider } from '../features/projects/ProjectsProvider';
+import { MilestonesProvider } from '../features/milestones/MilestonesProvider';
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ProjectsProvider>
@@ -12,7 +13,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <JournalsProvider>
           <DashboardProvider>
             <LinksProvider>
-              <WorkspaceProvider>{children}</WorkspaceProvider>
+              <MilestonesProvider>
+                <WorkspaceProvider>{children}</WorkspaceProvider>
+              </MilestonesProvider>
             </LinksProvider>
           </DashboardProvider>
         </JournalsProvider>

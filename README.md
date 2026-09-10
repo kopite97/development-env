@@ -24,7 +24,7 @@ npm run dev
 
 초기 데이터는 예시이며 프로젝트·태스크·일지·링크를 직접 추가할 수 있습니다. 프로젝트는 편집·보관/해제, 태스크는 편집·삭제/휴지통 복구를 지원합니다. 서비스 상태는 실제 모니터링 결과가 아닙니다. 서버·로그인·여러 기기 동기화는 아직 지원하지 않습니다. 자유 높이 조절은 후속 기능입니다.
 
-작업 실행 순서와 상태는 [계획 목록](docs/plans/README.md), 남은 기능은 [프론트엔드 안정화 계획](docs/plans/frontend-stabilization.md), 이전 결과는 [과거 기록](docs/references/history/frontend-stabilization-history.md)에서 확인할 수 있습니다.
+작업 실행 순서와 상태는 [계획 목록](docs/plans/README.md), 남은 기능은 [프론트엔드 안정화 계획](docs/plans/PLAN-0003-frontend-stabilization.md), 이전 결과는 [과거 기록](docs/references/history/frontend-stabilization-history.md)에서 확인할 수 있습니다.
 
 ## 유지보수 구조
 

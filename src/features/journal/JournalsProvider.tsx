@@ -16,7 +16,14 @@ function useJournalsStore() {
   });
   const add = (entry: JournalEntry) =>
     save([entry, ...journals].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)));
-  return { journals, add, error };
+  const update = (entry: JournalEntry) =>
+    save(
+      journals
+        .map((j) => (j.id === entry.id ? entry : j))
+        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
+    );
+  const remove = (id: string) => save(journals.filter((j) => j.id !== id));
+  return { journals, add, update, remove, error };
 }
 const Context = createContext<ReturnType<typeof useJournalsStore> | null>(null);
 export function JournalsProvider({ children }: { children: ReactNode }) {

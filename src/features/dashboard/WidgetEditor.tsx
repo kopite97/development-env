@@ -5,6 +5,7 @@ import { scopes, type Scope } from '../projects/scope';
 import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import { widgetTypes, type Widget, type WidgetType } from './model';
 import { widgetCatalog as registry } from './widgetCatalog';
+import { useProjects } from '../projects/ProjectsProvider';
 export function WidgetEditor({
   existing,
   onSave,
@@ -18,11 +19,17 @@ export function WidgetEditor({
   const [scope, setScope] = useState<Scope>(existing?.scope || 'all');
   const [title, setTitle] = useState(existing?.title || registry.overview.title);
   const [size, setSize] = useState<Widget['size']>(existing?.size || 'medium');
+  const { projects } = useProjects();
+  const [projectId, setProjectId] = useState(existing?.projectId ?? '');
+  const [limit, setLimit] = useState(existing?.limit?.toString() ?? '');
+  const supportsProject = ['overview', 'board', 'journal', 'milestone'].includes(type);
   const canDiscard = useUnsavedChanges(
     type !== (existing?.type || 'overview') ||
       scope !== (existing?.scope || 'all') ||
       title !== (existing?.title || registry.overview.title) ||
-      size !== (existing?.size || 'medium'),
+      size !== (existing?.size || 'medium') ||
+      projectId !== (existing?.projectId ?? '') ||
+      limit !== (existing?.limit?.toString() ?? ''),
   );
   const close = () => {
     if (canDiscard()) onClose();
@@ -39,6 +46,8 @@ export function WidgetEditor({
             scope,
             title: title.trim() || registry[type].title,
             size,
+            ...(supportsProject && projectId ? { projectId } : {}),
+            ...(supportsProject && limit ? { limit: Number(limit) } : {}),
           });
         }}
       >
@@ -69,7 +78,11 @@ export function WidgetEditor({
             <input maxLength={48} value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
           <Field label="표시할 프로젝트 범위">
-            <select value={scope} onChange={(e) => setScope(e.target.value as Scope)}>
+            <select
+              disabled={supportsProject && !!projectId}
+              value={scope}
+              onChange={(e) => setScope(e.target.value as Scope)}
+            >
               {Object.entries(scopes).map(([key, label]) => (
                 <option key={key} value={key}>
                   {label}
@@ -77,6 +90,41 @@ export function WidgetEditor({
               ))}
             </select>
           </Field>
+          {supportsProject && (
+            <>
+              <Field label="특정 프로젝트">
+                <select
+                  value={projectId}
+                  onChange={(e) => {
+                    setProjectId(e.target.value);
+                    setScope('all');
+                  }}
+                >
+                  <option value="">분야 범위 사용</option>
+                  {projectId && !projects.some((p) => p.id === projectId) && (
+                    <option value={projectId}>없는 프로젝트</option>
+                  )}
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                      {p.archived ? ' (보관)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="표시 개수">
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  step={1}
+                  placeholder="기본값"
+                  value={limit}
+                  onChange={(e) => setLimit(e.target.value)}
+                />
+              </Field>
+            </>
+          )}
           <Field label="위젯 너비">
             <select value={size} onChange={(e) => setSize(e.target.value as Widget['size'])}>
               <option value="small">작게 · 1칸</option>

@@ -3,26 +3,35 @@ import { Button, Field, Modal } from '../../shared/ui/controls';
 import { useProjects } from '../projects/ProjectsProvider';
 import { ProjectSelect } from '../projects/ProjectSelect';
 import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
-import type { JournalEntry } from './model';
+import { localDate, type JournalEntry } from './model';
 
 export function JournalEditor({
+  existing,
   onSave,
   onClose,
 }: {
+  existing?: JournalEntry;
   onSave: (entry: JournalEntry) => boolean;
   onClose: () => void;
 }) {
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(existing?.title ?? '');
   const { projects } = useProjects();
-  const [projectId, setProjectId] = useState('');
-  const [body, setBody] = useState('');
+  const [projectId, setProjectId] = useState(existing?.projectId ?? '');
+  const [body, setBody] = useState(existing?.body ?? '');
+  const [initialDate] = useState(() => localDate(existing?.createdAt ?? new Date().toISOString()));
+  const [date, setDate] = useState(initialDate);
   const [error, setError] = useState('');
-  const canDiscard = useUnsavedChanges(!!(title || projectId || body));
+  const canDiscard = useUnsavedChanges(
+    title !== (existing?.title ?? '') ||
+      projectId !== (existing?.projectId ?? '') ||
+      body !== (existing?.body ?? '') ||
+      date !== initialDate,
+  );
   const close = () => {
     if (canDiscard()) onClose();
   };
   return (
-    <Modal title="개발일지 작성" onClose={close} wide>
+    <Modal title={existing ? '개발일지 수정' : '개발일지 작성'} onClose={close} wide>
       <p className="modal-intro">오늘의 변경과 다음 작업을 기록하세요. 이 브라우저에 저장됩니다.</p>
       <form
         onSubmit={(event) => {
@@ -34,13 +43,16 @@ export function JournalEditor({
           }
           if (
             onSave({
-              id: crypto.randomUUID(),
+              id: existing?.id ?? crypto.randomUUID(),
               title: title.trim(),
               body: body.trim(),
               projectId,
               project: project.name,
               scope: project.scope,
-              createdAt: new Date().toISOString(),
+              createdAt:
+                date === initialDate
+                  ? (existing?.createdAt ?? new Date().toISOString())
+                  : new Date(`${date}T12:00:00`).toISOString(),
             })
           )
             onClose();
@@ -61,6 +73,9 @@ export function JournalEditor({
             />
           </Field>
           <ProjectSelect projects={projects} value={projectId} onChange={setProjectId} />
+          <Field label="작성일">
+            <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
           <Field label="본문">
             <textarea
               required

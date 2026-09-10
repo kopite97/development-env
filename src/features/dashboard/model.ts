@@ -14,6 +14,8 @@ export type Widget = {
   scope: Scope;
   title: string;
   size: 'small' | 'medium' | 'wide';
+  projectId?: string;
+  limit?: number;
 };
 export const defaultLayout: Widget[] = [
   {
@@ -39,7 +41,10 @@ export function isLayout(value: unknown): value is Widget[] {
         widgetTypes.includes(w.type) &&
         ['all', 'unity', 'server'].includes(w.scope) &&
         typeof w.title === 'string' &&
-        ['small', 'medium', 'wide'].includes(w.size),
+        ['small', 'medium', 'wide'].includes(w.size) &&
+        (w.projectId === undefined ||
+          (typeof w.projectId === 'string' && w.projectId.length > 0)) &&
+        (w.limit === undefined || (Number.isInteger(w.limit) && w.limit >= 1 && w.limit <= 20)),
     ) &&
     new Set(value.map((w) => w.id)).size === value.length
   );

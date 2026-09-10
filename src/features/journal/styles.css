@@ -59,3 +59,14 @@
 .document-row > svg:last-child {
   margin-left: auto;
 }
+
+.document-row > span,
+.journal-row > span:not(.journal-date) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.document-row > svg,
+.journal-row > svg {
+  flex-shrink: 0;
+}

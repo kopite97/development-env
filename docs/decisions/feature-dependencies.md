@@ -26,4 +26,4 @@ ProjectsProvider must remain above TasksProvider and JournalsProvider. Project f
 
 The [boundary checker](../../tools/check-boundaries.mjs) parses TypeScript imports, exports, import types, and literal dynamic imports and resolves local modules using tsconfig. It rejects upward layer imports and undeclared feature-to-feature dependencies, including type-only imports. It is a static source check; it does not analyze computed runtime import strings or CSS selectors.
 
-See [frontend architecture](../architecture/frontend.md) and the [migration plan](../plans/source-structure-migration.md).
+See [frontend architecture](../architecture/frontend.md) and the [migration plan](../plans/PLAN-0002-source-structure-migration.md).

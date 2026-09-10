@@ -18,6 +18,8 @@ export function ProjectOverview({
   onReset,
   emptyAction,
   archived = false,
+  limit,
+  projectOnly = false,
 }: {
   scope: Scope;
   tasks: { scope: Exclude<Scope, 'all'>; status: 'todo' | 'doing' | 'done' }[];
@@ -27,6 +29,8 @@ export function ProjectOverview({
   onReset?: () => void;
   emptyAction?: ReactNode;
   archived?: boolean;
+  limit?: number;
+  projectOnly?: boolean;
 }) {
   const list = projects.filter(
     (p) =>
@@ -46,14 +50,14 @@ export function ProjectOverview({
           </strong>
         </div>
         <div>
-          <span>분야 전체 진행 중인 작업</span>
+          <span>{projectOnly ? '프로젝트 진행 중인 작업' : '분야 전체 진행 중인 작업'}</span>
           <strong>
             {filtered.filter((t) => t.status === 'doing').length}
             <small>개</small>
           </strong>
         </div>
         <div>
-          <span>분야 전체 완료한 작업</span>
+          <span>{projectOnly ? '프로젝트 완료한 작업' : '분야 전체 완료한 작업'}</span>
           <strong>
             {filtered.filter((t) => t.status === 'done').length}
             <small>개</small>
@@ -76,7 +80,7 @@ export function ProjectOverview({
         </EmptyState>
       )}
       <div className="project-list">
-        {list.map((p) => {
+        {list.slice(0, limit).map((p) => {
           const Icon = projectIcons[p.id] ?? (p.scope === 'unity' ? Gamepad2 : Server);
           return (
             <button className="project-row" key={p.id} onClick={() => onOpen(p.id)}>
@@ -89,7 +93,7 @@ export function ProjectOverview({
               </span>
               <div className="project-progress">
                 <span>{p.progress}%</span>
-                <Progress value={p.progress} />
+                <Progress value={p.progress} label={`${p.name} 진행률`} />
               </div>
               <ChevronRight size={16} />
             </button>

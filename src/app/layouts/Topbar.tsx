@@ -1,12 +1,29 @@
 import { ChevronRight, Home, Menu } from 'lucide-react';
 import { useWorkspace } from '../WorkspaceProvider';
 import { Button } from '../../shared/ui/controls';
-export function Topbar({ onMenu }: { onMenu: () => void }) {
+import type { Ref } from 'react';
+export function Topbar({
+  onMenu,
+  menuOpen,
+  menuRef,
+}: {
+  onMenu: () => void;
+  menuOpen: boolean;
+  menuRef: Ref<HTMLButtonElement>;
+}) {
   const { page, projectId } = useWorkspace();
   return (
     <header className="topbar">
       <div className="breadcrumb">
-        <Button variant="ghost" className="mobile-menu" aria-label="메뉴 열기" onClick={onMenu}>
+        <Button
+          ref={menuRef}
+          variant="ghost"
+          className="mobile-menu"
+          aria-label="메뉴 열기"
+          aria-expanded={menuOpen}
+          aria-controls="workspace-navigation"
+          onClick={onMenu}
+        >
           <Menu size={19} />
         </Button>
         <Home size={15} />

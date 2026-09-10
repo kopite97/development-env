@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { defaultLayout, isLayout, moveWidget } from './model';
 describe('persisted dashboard layout', () => {
+  it('accepts legacy layouts and validates optional project/count settings', () => {
+    expect(isLayout([{ ...defaultLayout[0], projectId: 'forest', limit: 1 }])).toBe(true);
+    for (const limit of [0, 21, 1.5, '3', null]) {
+      expect(isLayout([{ ...defaultLayout[0], limit }])).toBe(false);
+    }
+    expect(isLayout([{ ...defaultLayout[0], projectId: '' }])).toBe(false);
+  });
   it('accepts defaults and an intentionally empty dashboard', () => {
     expect(isLayout(defaultLayout)).toBe(true);
     expect(isLayout([])).toBe(true);

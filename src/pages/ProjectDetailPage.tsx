@@ -11,6 +11,7 @@ import { useTasks } from '../features/tasks/TasksProvider';
 import { TaskBoard } from '../features/tasks/TaskBoard';
 import { useJournals } from '../features/journal/JournalsProvider';
 import { RecentJournals } from '../features/journal/RecentJournals';
+import { MilestoneList } from '../features/milestones/MilestoneList';
 export function ProjectDetailPage({
   scaffold,
   projectId,
@@ -63,6 +64,13 @@ export function ProjectDetailPage({
         ) : (
           <>
             <ProjectSummary project={project} />
+            <section className="content-panel" aria-label="프로젝트 마일스톤">
+              <div className="panel-heading">
+                <h2>마일스톤</h2>
+                <p>목표와 기한을 관리하세요.</p>
+              </div>
+              <MilestoneList scope="all" projects={[project]} projectId={project.id} />
+            </section>
             <section className="content-panel" aria-label="프로젝트 작업">
               <div className="panel-heading">
                 <h2>연결된 작업</h2>
