@@ -7,6 +7,9 @@ export function registerDirtyForm() {
     dirtyForms.delete(id);
   };
 }
-export function confirmNavigation() {
-  return dirtyForms.size === 0 || window.confirm('저장하지 않은 변경 사항을 버리고 이동할까요?');
+export function confirmNavigation(
+  hasDetachedDraft = false,
+  message = '저장하지 않은 변경 사항을 버리고 이동할까요?',
+) {
+  return (!hasDetachedDraft && dirtyForms.size === 0) || window.confirm(message);
 }

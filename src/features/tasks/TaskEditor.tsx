@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Button, Field, Modal } from '../../shared/ui/controls';
+import { Button, Modal } from '../../shared/ui/controls';
 import { type Task } from './model';
 import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import type { Project } from '../projects/model';
-import { ProjectSelect } from '../projects/ProjectSelect';
+import { TaskFields } from './TaskFields';
 export function TaskEditor({
   existing,
   projects,
@@ -58,56 +58,7 @@ export function TaskEditor({
           else setError('저장하지 못했습니다. 입력 내용을 유지했습니다. 다시 저장해 주세요.');
         }}
       >
-        <div className="form-grid">
-          <Field label="태스크 제목">
-            <input
-              required
-              maxLength={160}
-              value={form.title}
-              onChange={(e) => change('title', e.target.value)}
-              autoFocus
-            />
-          </Field>
-          <ProjectSelect
-            projects={projects}
-            value={form.projectId}
-            onChange={(id) => change('projectId', id)}
-          />
-          <Field label="상태">
-            <select
-              value={form.status}
-              onChange={(e) => change('status', e.target.value as Task['status'])}
-            >
-              <option value="todo">할 일</option>
-              <option value="doing">진행 중</option>
-              <option value="done">완료</option>
-            </select>
-          </Field>
-          <Field label="우선순위">
-            <select
-              value={form.priority}
-              onChange={(e) => change('priority', e.target.value as Task['priority'])}
-            >
-              <option value="보통">보통</option>
-              <option value="높음">높음</option>
-            </select>
-          </Field>
-          <Field label="태그">
-            <input
-              maxLength={40}
-              value={form.tag}
-              onChange={(e) => change('tag', e.target.value)}
-            />
-          </Field>
-          <Field label="상세 내용">
-            <textarea
-              rows={5}
-              maxLength={10000}
-              value={form.description}
-              onChange={(e) => change('description', e.target.value)}
-            />
-          </Field>
-        </div>
+        <TaskFields form={form} change={change} projects={projects} />
         {error && (
           <p className="notice" role="alert">
             {error}

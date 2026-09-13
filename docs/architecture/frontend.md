@@ -2,7 +2,7 @@
 
 ## Composition
 
-The entry is [main.tsx](../../src/main.tsx), which renders [app/App.tsx](../../src/app/App.tsx). App composes AppProviders, AppLayout, and PageRouter. The router selects five primary pages, project detail, or the not-found page.
+The entry is [main.tsx](../../src/main.tsx), which renders [app/App.tsx](../../src/app/App.tsx). App composes the app-owned [AuthApp](../../src/app/auth/AuthApp.tsx) and [AuthSession](../../src/app/auth/session.ts). GET /api/v1/me gates five distinct states: checking, unauthenticated, disabled, bootstrap-error and authenticated. The authenticated shell displays server User/PersonalWorkspace, API-backed Project pages and Overview counters. It mounts none of the legacy business providers. Identity is partitioned by User ID, Workspace ID and independent session generation; Workspace revision is not a session counter.
 
 ```text
 src/
@@ -13,7 +13,8 @@ src/
   features/
     dashboard/         layout draft, catalog, widget frame/editor
     projects/          project data, classification, editor and summaries
-    tasks/             task data, board, editor and recovery
+    overview/          API aggregate DTOs, queries and counters
+    tasks/             API models/queries/mutations, shared presentation, isolated legacy adapter
     journal/           journal CRUD, date/project filters and list/detail views
     links/             link data, validation, ordering and editor
     operations/        example service status display
@@ -28,11 +29,37 @@ src/
 
 The dependency direction is `app -> pages -> features -> shared`; app and pages may also use lower layers directly. Pages never import app. Features never import app or pages. Shared never imports application domains. The explicit project contracts shared between features are documented in the [dependency decision](../decisions/feature-dependencies.md) and checked by `npm run check:boundaries`.
 
-[PageRouter](../../src/app/PageRouter.tsx) injects navigation/search callbacks and the presentation slots composed by [usePageScaffold](../../src/app/layouts/usePageScaffold.tsx). The shared [PageScaffold](../../src/shared/ui/PageScaffold.tsx) renders title, description, overview, feedback, filters, actions, and children without reading domain providers. Pages can suppress slots for detail and recovery screens.
+In the isolated legacy composition, [PageRouter](../../src/app/PageRouter.tsx) injects navigation/search callbacks and the presentation slots composed by [usePageScaffold](../../src/app/layouts/usePageScaffold.tsx). The shared [PageScaffold](../../src/shared/ui/PageScaffold.tsx) renders title, description, overview, feedback, filters, actions, and children without reading domain providers. Pages can suppress slots for detail and recovery screens.
 
-ProjectsWorkspace, JournalWorkspace, LinkLibrary, and DashboardWorkspace own their feature-specific filters, editor state, and commands. URL filter values remain application-owned inputs. ProjectDetailPage joins projects, tasks, and journals by project ID; useProjectEditor owns the project editing state. ProjectsWorkspace receives task status summaries through page composition rather than importing the tasks feature.
+Legacy ProjectsWorkspace, JournalWorkspace, LinkLibrary, and DashboardWorkspace own their feature-specific filters, editor state, and commands. URL filter values remain application-owned inputs. ProjectDetailPage joins projects, tasks, and journals by project ID; useProjectEditor owns the project editing state. ProjectsWorkspace receives task status summaries through page composition rather than importing the tasks feature.
 
-## State and persistence
+## Authentication and transport
+
+[Shared HTTP](../../src/shared/http/client.ts) uses same-origin fetch at the relative /api/v1 root, typed errors, JSON/empty response checks, bounded timeout, caller/lifecycle cancellation and generation checks before dispatch/publication. It receives auth and CSRF callbacks through app composition and imports no app or feature code. CSRF acquisition is single-flight and memory-only; authenticated mutations get the current X-CSRF-Token. Login is explicit top-level backend navigation with validated route intent.
+
+Normal logout waits for actual 204. CSRF_INVALID permits one same-identity revalidation/token refresh and explicit retry, with no mutation replay; a second rejection exposes a configuration problem. Ambiguous logout gates private state and reconciles with /me. Active 401 and typed disabled 403 tear down identity and tokens. Late obsolete responses cannot publish identity, errors or tokens.
+
+Cross-tab BroadcastChannel messages contain only a change hint, never identity or tokens. Receivers verify /me; unchanged identity does not echo another hint. Focus, visibility and pageshow are the fallback. Pagehide retires private DOM before BFCache restoration. All of this bypasses the prototype dirty-navigation guard. No identity, tokens or auth events are persisted in browser storage.
+
+## Authenticated Projects and Overview
+
+[PrivateWorkspace](../../src/app/auth/PrivateWorkspace.tsx) composes isolated feature stores with the existing AuthSession transport and captured generation. [ServerProjectsPage](../../src/pages/ServerProjectsPage.tsx) joins Project UI, Overview and Tasks by validated server UUID without a cross-feature import. Root shows global Overview and the temporary Task-only Home board; `/tasks` uses the preserved Task shell. Journal and Library routes remain pending. App-owned history guards ordinary draft/pending navigation with one confirmation; auth teardown takes precedence.
+
+[Project API models](../../src/features/projects/apiModel.ts) validate UUID/revision/audit metadata and explicitly serialize writable fields. Presentation maps currentMilestone to the memo, status to archived, and colorToken to a visual class. No fixture lookup or local UUID generation supplies resource identity. Creation keys are operation identifiers only.
+
+[ProjectStore](../../src/features/projects/apiStore.ts) separates filter-bound cursor chains, direct detail and revision-aware entities. Pages are 20 rows; only a null cursor ends traversal. Direct archived detail never depends on list membership. [OverviewStore](../../src/features/overview/apiStore.ts) deduplicates scope/project queries independently of Project search, status and pagination. Active and archived counts are separate; aggregate task counts include archived Projects and exclude soft-deleted tasks.
+
+Queries combine AbortControllers, generation checks and request sequencing. Mutation epochs retire old Project reads; Overview invalidation retires old aggregate reads. Successful mutation responses seed confirmed entities before follow-up refresh, so a failed read cannot turn a confirmed save into an apparent failed write. Inactive queries become stale without speculative fetching. These endpoints are independent snapshots, not a shared commit watermark.
+
+[ApiProjectEditor](../../src/features/projects/ApiProjectEditor.tsx) freezes creation key/body/time, bounds replay to 24 hours, submits dirty-field PATCHes with captured revision and requires explicit review for conflict/ambiguity. [Project handoff](../../src/app/auth/projectHandoff.ts) retains detached memory-only drafts solely across same-identity verification. Login/logout/session loss/account change destroys them. No restored draft automatically dispatches. Bounded Project CSRF recovery reuses AuthSession verification/token acquisition without automatic mutation replay.
+
+Task, Journal, Milestone, Link and Dashboard APIs/providers remain excluded. All legacy storage stays preserved and unused by authenticated composition. See [PLAN-0007](../plans/PLAN-0007-project-overview-integration.md).
+
+## Retained legacy composition
+
+The following page/provider/widget implementation is preserved for [the test-only legacy entry](../../tests/legacy/main.tsx), served through its separate Vite configuration. It is not imported by the default App or selectable in a production build. Existing legacy tests keep their original URLs and independent browser contexts. API-only Project/Overview stores are separate from these legacy providers.
+
+## Legacy state and persistence
 
 ProjectsProvider wraps TasksProvider and JournalsProvider because they resolve project names and scopes from current project data. DashboardProvider owns saved layout and its editing draft. LinksProvider owns link data. WorkspaceProvider owns URL-backed filters/navigation, toast, and generic detail display and checks dashboard editing before navigation.
 
@@ -46,7 +73,17 @@ Routes are `/`, `/projects`, `/projects/:projectId`, `/tasks`, `/journals`, and 
 
 `useMobileNavigation` owns mobile menu focus entry, Tab wrapping, Escape, scroll locking and focus restoration; main content is inert while the named menu dialog is open. Desktop resizing closes the mobile menu. Shared Modal names use heading IDs, focus the first form field after opening, and restore an available trigger on close. Project progress bars include project-specific accessible names.
 
-## Dashboard composition
+## Authenticated Tasks
+
+[TaskStore](../../src/features/tasks/apiStore.ts) separates status-filtered 20-row cursor chains, a combined Home budget, trash pages/badge, direct detail, independent stats and revision-aware entities. Query sequence, abort signal, session generation and mutation epoch checks reject stale publication. Inactive query entries are bounded; pages are fetched only on demand. Equal Task revisions can carry newer Project names/scope, ordered by the current read; creation replay snapshots are reconciled by direct GET before presentation.
+
+[API models](../../src/features/tasks/apiModel.ts) validate complete UUID/audit/revision records and serialize only writable fields. Priority labels map explicitly to normal/high. Project relation is a server UUID; name and scope are read-only derived fields. App-owned [Project option adaptation](../../src/app/auth/taskProjectOptions.ts) injects paginated active options and independent selected-ID detail. Tasks import neither Project API internals nor legacy name/fixture authority.
+
+[ApiTaskManager](../../src/features/tasks/ApiTaskManager.tsx) connects the reused Task board and trash to confirmed async commands. [ApiTaskEditor](../../src/features/tasks/ApiTaskEditor.tsx) reuses the original fields/modal, retains drafts on failure, freezes creation intents, and requires explicit reconciliation/reapply for conflicts or ambiguous existing-resource writes. DELETE and restore parse full 200 responses. [Task handoff](../../src/app/auth/taskHandoff.ts) preserves detached drafts only across same-identity verification; bounded security recovery is shared with Projects. Logout, expiration, disabled accounts and identity changes clear it.
+
+Task writes invalidate all Task reads/stats and Overview. Project writes additionally invalidate Task reads and option queries through app composition. Stats exclude deleted Tasks and remain independent from loaded rows; trash ignores board search. The Home board reuses WidgetFrame presentation with one combined limit (default 20), without Dashboard providers, API or stored layout. Task markup is isolated from broad auth-card styles. Existing legacy adapters and storage remain unchanged.
+
+## Legacy dashboard composition
 
 [widgetCatalog](../../src/features/dashboard/widgetCatalog.ts) owns titles, descriptions, and icons. WidgetEditor and WidgetFrame use only this metadata. [widgetRenderers](../../src/pages/home/widgetRenderers.tsx) connects widget types to projects, tasks, journals, links, operations, and milestones. HomePage reads shared feature providers and injects the render callback into DashboardWorkspace. DashboardWorkspace owns layout editing, drag state, widget settings, and reset confirmation; it does not import the other content features.
 
@@ -64,6 +101,6 @@ Styles enter through [app/styles/global.css](../../src/app/styles/global.css), i
 
 ## Validation and limitations
 
-Unit tests are colocated with models and routes; `tests/` contains Playwright routing, CRUD, layout, save-failure, and mobile regression tests. See the [development guide](../guides/development.md).
+Unit tests are colocated with auth, HTTP, model and route modules. `tests/auth/` contains deterministic auth/session browser tests with storage sentinels and excluded-API assertions. `tests/real/` owns the disposable signed-token/PKCE provider and real backend/Vite/Nginx acceptance runner. Existing routing, CRUD, layout, failure and mobile tests run through the isolated legacy entry. See the [current commands and deployment inputs](../../README.md).
 
-Operations still show example data. Project-detail task editing remains in the [separate stabilization backlog](../plans/PLAN-0003-frontend-stabilization.md). Journal management and project widget settings are tracked in [PLAN-0004](../plans/PLAN-0004-journal-and-project-widgets.md); milestones and accessibility are tracked in [PLAN-0005](../plans/PLAN-0005-milestones-and-accessibility.md). The [API contract](../references/api/backend-api-contract.md) is a future design, not an implemented client or server.
+The isolated prototype retains its stabilization backlog and example Operations data. Authenticated Project detail now includes Task editing under [PLAN-0008](../plans/PLAN-0008-task-integration.md). The [historical API proposal](../references/api/backend-api-contract.md) does not override the implemented backend contracts referenced by the integration Plans. Auth, User/PersonalWorkspace, Projects, Overview and Tasks are integrated; Journal, Milestone, Link and Dashboard APIs remain deferred. `tests/tasks/` covers API Task behavior, storage isolation and retained presentation; the legacy browser entry preserves existing prototype regressions.

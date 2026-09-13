@@ -1,13 +1,4 @@
-﻿import { AppProviders } from './AppProviders';
-import { PageRouter } from './PageRouter';
-import { AppLayout } from './layouts/AppLayout';
-
+import { AuthApp } from './auth/AuthApp';
 export function App() {
-  return (
-    <AppProviders>
-      <AppLayout>
-        <PageRouter />
-      </AppLayout>
-    </AppProviders>
-  );
+  return <AuthApp />;
 }

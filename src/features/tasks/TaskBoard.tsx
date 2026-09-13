@@ -1,18 +1,27 @@
 import { Flag } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Badge } from '../../shared/ui/controls';
 import { type Scope } from '../projects/scope';
-import { type Task } from './model';
+import { type TaskPresentation as Task } from './presentation';
 export function TaskBoard({
   scope,
   tasks,
   onTaskChange,
   onEdit,
+  columns,
+  pending,
 }: {
   scope: Scope;
   tasks: Task[];
   onTaskChange: (id: string, status: Task['status']) => void;
   onEdit?: (task: Task) => void;
+  columns?: Partial<
+    Record<
+      Task['status'],
+      { total?: number; footer?: ReactNode; hideEmpty?: boolean; emptyText?: string }
+    >
+  >;
+  pending?: ReadonlySet<string>;
 }) {
   const [dragged, setDragged] = useState<string | null>(null);
   const [target, setTarget] = useState<Task['status'] | null>(null);
@@ -39,7 +48,8 @@ export function TaskBoard({
             event.preventDefault();
             event.stopPropagation();
             const task = filtered.find((t) => t.id === dragged);
-            if (task && task.status !== status) onTaskChange(task.id, status);
+            if (task && task.status !== status && !pending?.has(task.id))
+              onTaskChange(task.id, status);
             setDragged(null);
             setTarget(null);
           }}
@@ -47,7 +57,11 @@ export function TaskBoard({
           <div className="column-heading">
             <span className="status-dot" />
             {['할 일', '진행 중', '완료'][i]}
-            <span className="count">{filtered.filter((t) => t.status === status).length}</span>
+            <span className="count">
+              {columns
+                ? (columns[status]?.total ?? '—')
+                : filtered.filter((t) => t.status === status).length}
+            </span>
           </div>
           {filtered
             .filter((t) => t.status === status)
@@ -55,7 +69,9 @@ export function TaskBoard({
               <article
                 className={`task ${dragged === t.id ? 'task-dragging' : ''}`}
                 key={t.id}
-                draggable
+                data-task-id={t.id}
+                draggable={!pending?.has(t.id)}
+                aria-busy={pending?.has(t.id) || undefined}
                 onDragStart={(event) => {
                   event.stopPropagation();
                   event.dataTransfer.setData('application/x-devspace-task', t.id);
@@ -71,7 +87,11 @@ export function TaskBoard({
                 <small>{t.project}</small>
                 <h4>
                   {onEdit ? (
-                    <button className="task-title" onClick={() => onEdit(t)}>
+                    <button
+                      className="task-title"
+                      disabled={pending?.has(t.id)}
+                      onClick={() => onEdit(t)}
+                    >
                       {t.title}
                     </button>
                   ) : (
@@ -92,6 +112,7 @@ export function TaskBoard({
                 <label className="task-status">
                   <span className="sr-only">{t.title} 상태</span>
                   <select
+                    disabled={pending?.has(t.id)}
                     value={t.status}
                     onChange={(e) => onTaskChange(t.id, e.target.value as Task['status'])}
                   >
@@ -102,9 +123,10 @@ export function TaskBoard({
                 </label>
               </article>
             ))}
-          {!filtered.some((t) => t.status === status) && (
-            <p className="column-empty">아직 작업이 없어요</p>
+          {!filtered.some((t) => t.status === status) && !columns?.[status]?.hideEmpty && (
+            <p className="column-empty">{columns?.[status]?.emptyText ?? '아직 작업이 없어요'}</p>
           )}
+          {columns?.[status]?.footer}
         </div>
       ))}
     </div>

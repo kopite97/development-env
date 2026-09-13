@@ -9,3 +9,8 @@ npm-debug.log
 .env
 .env.*
 AGENTS.md
+tests
+test-results
+playwright-report
+playwright*.ts
+.auth-validation

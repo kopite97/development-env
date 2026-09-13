@@ -1,63 +1,80 @@
 # Devspace
 
-개인 개발 프로젝트를 모아 보는 React + TypeScript 작업실입니다. 차분한 라벤더·회색·세이지 색상과 반응형 카드 레이아웃을 사용합니다.
+Devspace is a React 19 and TypeScript workspace frontend. The default entry verifies a backend session through `/api/v1/me`, then displays the user's name and personal workspace. Google sign-in and CSRF-protected logout use the backend's existing session contract.
 
-## 실행
+Projects and Tasks use backend data and mutations. The Task page retains its existing board, editor, trash and responsive shell. Home shows Overview and a temporary Task-only board; Project detail includes related Tasks. Journal, Milestone, Link and Dashboard APIs remain deferred. Existing prototype records are preserved in browser storage and are never read, imported or cleared by the authenticated entry.
 
-Node.js 22.12 이상에서:
+## Development
+
+Use Node.js 22.12 or newer:
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
-터미널에 표시되는 로컬 주소로 접속합니다. 프로덕션 산출물은 `npm run build`, 미리보기는 `npm run preview`입니다.
+The local frontend origin is `http://127.0.0.1:5173`. Root `.env` and [.env.example](.env.example) contain the server-only `BACKEND_UPSTREAM=http://127.0.0.1:8080` proxy setting. Do not prefix it with `VITE_`. Browser requests remain relative; Vite forwards `/api` and `/oauth2`, including nested paths, without rewriting them.
 
-## 구현된 기능
+Configure the backend's `APP_ORIGIN=http://127.0.0.1:5173` and Google callback `OIDC_GOOGLE_REDIRECT_URI=http://127.0.0.1:5173/api/v1/auth/callback/google` together. Backend credentials stay in backend configuration. Use one hostname consistently. A missing backend produces a retryable connection screen; it never opens the prototype.
 
-- 프로젝트 요약, 작업 보드, 운영·배포, 빠른 링크, 개발 일지, 마일스톤 위젯.
-- 배치 편집에서 추가·제거·교체, 제목·분야·너비 설정, 드래그 또는 키보드로 조작 가능한 이동 버튼.
-- 저장·취소·기본 배치 복원, 같은 위젯 여러 개 등록, 모바일 1열 배치.
-- 분야별 필터, 현재 화면 검색, 태스크 드래그·상태 선택으로 작업 상태 변경, 자료 링크 열기.
-- 개발일지 작성·목록·홈 반영 및 브라우저 저장.
-- 낮은 화면에서도 접근 가능한 사이드바 스크롤, 배치·일지 저장 실패 시 초안 유지·재시도, 미저장 변경 이탈 확인.
+## Container
 
-초기 데이터는 예시이며 프로젝트·태스크·일지·링크를 직접 추가할 수 있습니다. 프로젝트는 편집·보관/해제, 태스크는 편집·삭제/휴지통 복구를 지원합니다. 서비스 상태는 실제 모니터링 결과가 아닙니다. 서버·로그인·여러 기기 동기화는 아직 지원하지 않습니다. 자유 높이 조절은 후속 기능입니다.
+```sh
+docker build -t devspace .
+docker run --rm -p 10000:10000 -e BACKEND_UPSTREAM=http://host.docker.internal:8080 devspace
+```
 
-작업 실행 순서와 상태는 [계획 목록](docs/plans/README.md), 남은 기능은 [프론트엔드 안정화 계획](docs/plans/PLAN-0003-frontend-stabilization.md), 이전 결과는 [과거 기록](docs/references/history/frontend-stabilization-history.md)에서 확인할 수 있습니다.
+The official Nginx image renders the upstream into [nginx.conf](nginx.conf) at startup. Supply a reachable HTTP(S) origin without a path suffix. Missing upstream fails startup. SPA routes fall back to the index; API and OAuth failures retain backend/proxy status. Login and callback access logs are disabled to avoid recording provider parameters.
 
-## 유지보수 구조
+For live deployment, use an HTTPS browser origin, matching backend `APP_ORIGIN`, a registered Google callback at that origin's `/api/v1/auth/callback/google`, and backend `SESSION_COOKIE_SECURE=true`. Use the configured callback and trust forwarded headers only from controlled ingress. The local HTTP container tests use isolated Secure=false settings; they do not establish a production TLS or Google rollout.
 
-| 경로                                                | 역할                                            |
-| --------------------------------------------------- | ----------------------------------------------- |
-| `src/shared/ui/`                                    | 공용 컨트롤과 기능 중립적인 PageScaffold        |
-| `src/shared/styles/tokens.css`                      | 공통 디자인 토큰                                |
-| `src/app/`                                          | 앱 조합, Provider 구성, 라우팅과 공통 화면 상태 |
-| `src/app/layouts/` / `src/pages/`                   | 앱 레이아웃과 경로별 기능 조합                  |
-| `src/app/styles/global.css`                         | 역할별 CSS import 진입점                        |
-| `src/features/*/styles.css`                         | 기능별 스타일                                   |
-| `src/features/dashboard/model.ts`                   | 배치 타입·기본값·검증·순서 이동                 |
-| `src/features/dashboard/widgetCatalog.ts`           | 위젯 제목·설명·아이콘                           |
-| `src/pages/home/widgetRenderers.tsx`                | 위젯과 각 기능의 화면 연결                      |
-| `src/features/*/*Provider.tsx`                      | 배치·태스크·일지의 공유 상태와 저장             |
-| `src/features/dashboard/WidgetEditor.tsx`           | 추가·설정 공통 편집기                           |
-| `src/shared/hooks/usePersistedState.ts`             | 검증 가능한 브라우저 저장 어댑터                |
-| `src/features/{projects,tasks,journal}/fixtures.ts` | 기능별 예시 데이터                              |
-| `docs/references/api/backend-api-contract.md`       | 미구현 서버 API 설계 계약과 후속 제안           |
-
-위젯 확장 시 `widgetTypes`, `widgetCatalog`, `widgetRenderers`를 함께 갱신합니다. 저장 형식 변경에는 별도 호환·마이그레이션 검토가 필요합니다. 상세 절차는 아래 개발 가이드에 정리했습니다.
-
-파일별 책임, 데이터 흐름과 CSS 소유권은 [프론트엔드 아키텍처](docs/architecture/frontend.md), 실행·검증 절차는 [개발 가이드](docs/guides/development.md)를 참고하세요.
-
-## 검증
+## Validation
 
 ```sh
 npm run check:boundaries
 npm run check:docs
-npm run build
 npm test
-npm run format:check
+npm run build
+node tools/check-auth-artifact.mjs
 npm run test:e2e
+npx playwright test --config playwright.auth.config.ts
+npx playwright test --config playwright.projects.config.ts
+npx playwright test --config playwright.tasks.config.ts
+node tests/real/run.mjs
+node tests/real/run.mjs --nginx
+node tests/real/run.mjs --projects=final
+node tests/real/run.mjs --projects=final --nginx
+node tests/real/run.mjs --projects=final --tasks=final
+node tests/real/run.mjs --projects=final --tasks=final --nginx
 ```
 
-E2E 최초 실행 시 `npx playwright install chromium`이 필요합니다. E2E는 별도 로컬 개발 서버를 자동 실행합니다.
+Install Chromium with `npx playwright install chromium` if needed. Existing prototype regressions run on a separate test-only Vite entry at port 4175; auth tests use port 4176 and Project/Overview tests use port 4178, with isolated contexts. There is no production demo selector. Real acceptance runs sequentially on ports 18080 (backend), 18999 (disposable local OIDC provider), and 4175 or 4177 (Vite/Nginx). It requires Docker, Java 21 at the existing local JDK path, and the sibling backend checkout at `../dev-back/devspace`. The runner reuses its unchanged `bootTestRun`/PostgreSQL Testcontainers setup, rejects occupied ports, and stops only its own processes. Provider keys/tokens are disposable and are not packaged in the frontend image. Safe local evidence is retained under ignored `.auth-validation/`.
+
+## Projects and counters
+
+Project IDs, revisions and audit timestamps come exclusively from the server. Active/archived lists use 20-row cursor pages and explicit Load more; URL scope/search/status changes restart the chain. A selected Project is fetched directly, including archived Projects and Projects outside loaded pages or search. The current milestone is a memo string, not a Milestone resource.
+
+Creation retains an immutable request and Idempotency-Key in memory for explicit retries within the backend's 24-hour replay window. Reload/logout/account changes lose that recovery state: review Projects before creating again after an unconfirmed result. Edits send only changed fields and the captured revision. Conflicts and ambiguous writes require review, reconciliation and an explicit new attempt. Archive preserves related resources and detail access.
+
+Overview totals do not depend on loaded pages or search. Active and archived Project counts are separate; task aggregates include non-deleted tasks of archived Projects. Failed counters display unavailable/stale states, not fabricated zeros. Project mutations invalidate Project queries and Overview; manual refresh and session resumption discover external changes. Same-account verification may restore a detached draft, but never queues or retries a mutation automatically.
+
+No local Project data is read as API authority, imported or deleted. Legacy fixture IDs never become server Project IDs. No additional environment variable is required.
+
+## Tasks
+
+The Task page and Project detail load independent 20-row status columns with cursor controls. Home uses one combined 20-Task budget across all columns, with Unity scope and no Dashboard API or saved-layout authority. Trash uses `deleted=true`, ignores board search, and has its own server total and pagination. `/tasks/stats` counts all matching live Tasks independently of loaded pages. Search uses server title-or-Project-name matching.
+
+Task and Project UUIDs, revisions and audit metadata come from the server. Project name and scope are derived display fields; no name-based relation lookup runs in API mode. Creation/reassignment uses active Projects. Existing archived relations may be retained, and Tasks in archived Projects can be restored. The editor preserves all six fields and drafts after errors; status controls, drag/drop, delete and restore wait for confirmed responses. Revision conflicts require fresh detail and explicit review/reapply. Creation retries reuse an immutable body/key for at most 24 hours; no automatic replay or browser persistence is added.
+
+Task mutations invalidate Task lists/details/stats and Overview. Project changes also invalidate Task reads and Project options, including same-revision derived name/scope changes. Session checking hides private content; detached drafts survive only verified same-identity recovery. Task browser tests use port 4179. Legacy `devspace.tasks.v1` remains preserved and unused.
+
+## Structure and scope
+
+- [Frontend architecture](docs/architecture/frontend.md): auth composition, transport and retained legacy implementation.
+- [System overview](docs/architecture/overview.md): browser/proxy/backend boundary.
+- [Plan index](docs/plans/README.md) and [PLAN-0006](docs/plans/PLAN-0006-frontend-auth-http-integration.md): execution and validation evidence.
+- [PLAN-0007](docs/plans/PLAN-0007-project-overview-integration.md): Project/Overview contract, execution and validation evidence.
+- [PLAN-0008](docs/plans/PLAN-0008-task-integration.md): Task integration, preserved UI and validation evidence.
+- [Stabilization backlog](docs/plans/PLAN-0003-frontend-stabilization.md): unrelated pending prototype work.
+
+The retained prototype includes project/task/journal/link/milestone CRUD, dashboard widgets, local persistence and accessibility workflows. Its providers, fixtures and legacy navigation remain available only to their separate regression harness. The [historical API proposal](docs/references/api/backend-api-contract.md) does not override the implemented backend contract referenced by PLAN-0006.

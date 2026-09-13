@@ -5,7 +5,7 @@ export function ProjectSelect({
   value,
   onChange,
 }: {
-  projects: Project[];
+  projects: Pick<Project, 'id' | 'name' | 'archived'>[];
   value: string;
   onChange: (id: string) => void;
 }) {
