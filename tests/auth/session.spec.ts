@@ -20,18 +20,24 @@ test('pagehide retires private DOM before restoration; focus fallback revalidate
   let identity = alice;
   await page.route('**/api/v1/me', (route) => route.fulfill({ json: identity }));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Alice', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+  ).toBeVisible();
   await page.evaluate(() =>
     window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })),
   );
-  await expect(page.getByText('Alice workspace', { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+  ).toHaveCount(0);
   identity = bob;
   await page.evaluate(() => {
     const now = Date.now();
     Date.now = () => now + 2000;
     window.dispatchEvent(new Event('focus'));
   });
-  await expect(page.getByRole('heading', { name: 'Bob', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Bob · Bob workspace', exact: true }),
+  ).toBeVisible();
 });
 
 test('pending CSRF blocks duplicate logout; bodyless success clears identity', async ({ page }) => {
@@ -61,7 +67,9 @@ test('pending CSRF blocks duplicate logout; bodyless success clears identity', a
   release();
   await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
   expect(posts).toBe(1);
-  await expect(page.getByText('Alice workspace', { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+  ).toHaveCount(0);
 });
 
 test('CSRF recovery requires explicit retry and repeated rejection stops refresh loops', async ({
@@ -117,7 +125,9 @@ for (const mode of ['offline', 'malformed'] as const)
       await page.goto('/');
       await page.getByRole('button', { name: 'Log out', exact: true }).click();
       await expect(page.getByRole('status')).toHaveText('Checking your session…');
-      await expect(page.getByText('Alice workspace', { exact: true })).toHaveCount(0);
+      await expect(
+        page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+      ).toHaveCount(0);
       release();
       await expect(page.getByRole('alert')).toHaveText(
         'Logout was not confirmed. Please retry logout.',
@@ -144,7 +154,9 @@ for (const status of [401, 503])
         name: status === 401 ? 'Sign in to your workspace' : 'Connection problem',
       }),
     ).toBeVisible();
-    await expect(page.getByText('Alice workspace', { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+    ).toHaveCount(0);
   });
 
 test('known account switch cancels pending token and never sends the old logout', async ({
@@ -175,7 +187,9 @@ test('known account switch cancels pending token and never sends the old logout'
     channel.postMessage('changed');
     channel.close();
   });
-  await expect(page.getByRole('heading', { name: 'Bob', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Bob · Bob workspace', exact: true }),
+  ).toBeVisible();
   release();
   await expect(page.getByRole('button', { name: 'Log out', exact: true })).toBeEnabled();
   expect(posts).toBe(0);
@@ -203,7 +217,9 @@ for (const broadcast of [true, false])
     await page.goto('/');
     const other = await context.newPage();
     await other.goto('/projects');
-    await expect(other.getByRole('heading', { name: 'Alice', exact: true })).toBeVisible();
+    await expect(
+      other.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Log out', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Log out', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();

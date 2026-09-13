@@ -1,3 +1,4 @@
+import { defaultLayout as savedHomeFixture } from '../../src/features/dashboard/model';
 import { test as base, expect, type Page } from '@playwright/test';
 import { id, identity, overview, project } from '../projects/fixtures';
 export { id, identity, project };
@@ -28,6 +29,10 @@ export async function setup(page: Page) {
       url = new URL(req.url()),
       p = url.searchParams;
     state.requests.push(url);
+    if (url.pathname === '/api/v1/dashboards/home')
+      return route.fulfill({
+        json: { id: 'home', schemaVersion: 1, revision: 1, widgets: savedHomeFixture },
+      });
     if (url.pathname === '/api/v1/me') return route.fulfill({ json: state.identity });
     if (url.pathname === '/api/v1/auth/csrf') return route.fulfill({ json: { csrfToken: 'test' } });
     if (url.pathname === '/api/v1/overview')
@@ -35,7 +40,11 @@ export async function setup(page: Page) {
     if (url.pathname === '/api/v1/projects')
       return route.fulfill({ json: { items: [project(1)], total: 1, nextCursor: null } });
     if (url.pathname.startsWith('/api/v1/projects/')) return route.fulfill({ json: project(1) });
-    if (url.pathname === '/api/v1/journals')
+    if (url.pathname === '/api/v1/links')
+      return route.fulfill({
+        json: { items: [], total: 0, nextCursor: null, collectionRevision: 0 },
+      });
+    if (url.pathname === '/api/v1/journals' || url.pathname === '/api/v1/milestones')
       return route.fulfill({ json: { items: [], total: 0, nextCursor: null } });
     const rows = state.tasks.filter(
       (t) =>
@@ -109,7 +118,7 @@ export const test = base.extend<{ isolation: void }>({
         const p = new URL(request.url()).pathname;
         if (
           p.startsWith('/api/') &&
-          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|overview$)/.test(
+          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$)/.test(
             p,
           )
         )
@@ -132,6 +141,11 @@ export const test = base.extend<{ isolation: void }>({
             },
           });
       }, keys);
+      await context.route('**/api/v1/dashboards/home', (route) =>
+        route.fulfill({
+          json: { id: 'home', schemaVersion: 1, revision: 1, widgets: savedHomeFixture },
+        }),
+      );
       await use();
       expect(errors).toEqual([]);
       expect(excluded).toEqual([]);

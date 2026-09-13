@@ -55,3 +55,12 @@
 .quick-links strong {
   font-size: 14px;
 }
+.link-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.link-surface .widget-title h2 {
+  font-size: 13px;
+}

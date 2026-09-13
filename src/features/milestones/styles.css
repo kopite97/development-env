@@ -45,6 +45,12 @@
   display: grid;
   gap: 16px;
 }
+.milestone-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
 .milestone-content {
   min-width: 0;
   flex: 1;

@@ -28,20 +28,28 @@ test('checking gates private content; StrictMode, deep links, reload and account
   await expect(page.getByRole('status')).toHaveText('Checking your session…');
   await expect(page.getByText('Alice', { exact: true })).toHaveCount(0);
   release();
-  await expect(page.getByRole('heading', { name: 'Alice', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+  ).toBeVisible();
   expect(calls).toBe(1);
   await expect(
     page.getByText('Invalid Project address. Select a server Project from Projects.'),
   ).toBeVisible();
   await page.reload();
-  await expect(page.getByText('Alice workspace', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+  ).toBeVisible();
   expect(calls).toBe(2);
   identity = bob;
   await page.evaluate(() =>
     window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })),
   );
-  await expect(page.getByRole('heading', { name: 'Bob', exact: true })).toBeVisible();
-  await expect(page.getByText('Alice workspace', { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('region', { name: 'Bob · Bob workspace', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+  ).toHaveCount(0);
   await page.getByRole('link', { name: 'Tasks', exact: true }).click();
   await expect(page.getByRole('heading', { name: '작업 보드', exact: true })).toBeVisible();
   await page.goBack();
@@ -75,7 +83,9 @@ test('HTML success is a retryable protocol error, never a demo fallback', async 
   await expect(page.getByRole('heading', { name: 'Connection problem' })).toBeVisible();
   succeeds = true;
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(page.getByText('Alice workspace', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
+  ).toBeVisible();
 });
 test('login is explicit navigation with safe intent and fixed consumed failure notice', async ({
   page,

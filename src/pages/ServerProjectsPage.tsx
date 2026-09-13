@@ -15,6 +15,7 @@ export function ServerProjectsPage({
   memory,
   renderTasks,
   renderJournals,
+  renderMilestones,
 }: {
   store: ProjectStore;
   overview: OverviewStore;
@@ -23,6 +24,7 @@ export function ServerProjectsPage({
   memory: DraftMemory;
   renderTasks?: (id: string) => ReactNode;
   renderJournals?: (id: string) => ReactNode;
+  renderMilestones?: (id: string) => ReactNode;
 }) {
   const [creating, setCreating] = useState(memory.editor?.target === 'create');
   const params = url.searchParams;
@@ -65,6 +67,7 @@ export function ServerProjectsPage({
                   onSaved={() => {}}
                 />
                 {verified && renderTasks?.(project.id)}
+                {verified && renderMilestones?.(project.id)}
                 {verified && renderJournals?.(project.id)}
               </>
             )}

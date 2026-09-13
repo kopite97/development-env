@@ -2,7 +2,7 @@
 
 Devspace is a React 19 and TypeScript workspace frontend. The default entry verifies a backend session through `/api/v1/me`, then displays the user's name and personal workspace. Google sign-in and CSRF-protected logout use the backend's existing session contract.
 
-Projects, Tasks and Journals use backend data and mutations. The Task page retains its existing board, editor, trash and responsive shell. Home shows Overview, a temporary Task-only board and a read-only newest Journal widget; Project detail includes related Tasks and recent Journals. Milestone, Link and Dashboard APIs remain deferred. Existing prototype records are preserved in browser storage and are never read, imported or cleared by the authenticated entry.
+Projects, Tasks, Journals, Milestones and Links use backend data and mutations. The Task page retains its existing board, editor, trash and responsive shell. Home shows Overview, a Task board, recent Journals and read-only Milestone/Link widgets; Project detail includes Task and Milestone management and recent Journals. Library preserves its Link editor and up/down ordering controls. Home configuration now comes from the Dashboard API, preserving the grid, widget editor, drag/arrow ordering and sizes. The deployment widget remains an explicitly labeled example. Existing prototype records are preserved in browser storage and are never read, imported or cleared by the authenticated entry.
 
 ## Development
 
@@ -50,9 +50,21 @@ node tests/real/run.mjs --projects=final --tasks=final
 node tests/real/run.mjs --projects=final --tasks=final --nginx
 node tests/real/run.mjs --journals=final
 node tests/real/run.mjs --journals=final --nginx
+npm run dev -- --port 4181 --strictPort
+$env:MILESTONE_REUSE_SERVER='1'; npx playwright test --config playwright.milestones.config.ts
+node tests/real/run.mjs --milestones=final
+node tests/real/run.mjs --milestones=final --nginx
 ```
 
 Install Chromium with `npx playwright install chromium` if needed. Existing prototype regressions run on a separate test-only Vite entry at port 4175; auth tests use port 4176, Project/Overview tests use port 4178, Task tests use port 4179 and Journal tests use port 4180, with isolated contexts. There is no production demo selector. Real acceptance runs sequentially on ports 18080 (backend), 18999 (disposable local OIDC provider), and 4175 or 4177 (Vite/Nginx). It requires Docker, Java 21 at the existing local JDK path, and a sibling backend checkout at `../backend` or the historical `../dev-back/devspace` path. The runner reuses its unchanged `bootTestRun`/PostgreSQL Testcontainers setup, rejects occupied ports, and stops only its own processes. Provider keys/tokens are disposable and are not packaged in the frontend image. Safe local evidence is retained under ignored `.auth-validation/`.
+
+## Home Dashboard
+
+GET `/api/v1/dashboards/home` owns widget order, titles, scopes, sizes and optional Project/limit settings. Virtual revision-0 defaults are displayed without auto-saving; a saved empty array stays empty. The existing editor keeps a draft until an awaited full PUT succeeds. Conflicts and uncertain responses preserve that draft and require explicit comparison/reconciliation, never automatic replay. `기본 배치` changes the draft using the one contract-tested schema-1 reset template.
+
+Overview uses server counters plus Project rows (pagination when limit is omitted); boards use a combined default limit 20, recent Journals 3 and open Milestones 2. Links use their full server collection. Owned archived Project references resolve by UUID independently of pages. Deployment remains labeled example/demo data. `devspace.layout.v1` remains preserved and unused by authenticated code.
+
+Start Vite on port 4183, set `DASHBOARD_REUSE_SERVER=1`, and run `npx playwright test --config playwright.dashboard.config.ts`. Run `node tests/real/run.mjs --dashboard=final` and the same command with `--nginx` sequentially for disposable real acceptance. See [PLAN-0012](docs/plans/PLAN-0012-dashboard-integration.md) for contract, validation and recovery evidence.
 
 ## Projects and counters
 
@@ -66,7 +78,7 @@ No local Project data is read as API authority, imported or deleted. Legacy fixt
 
 ## Tasks
 
-The Task page and Project detail load independent 20-row status columns with cursor controls. Home uses one combined 20-Task budget across all columns, with Unity scope and no Dashboard API or saved-layout authority. Trash uses `deleted=true`, ignores board search, and has its own server total and pagination. `/tasks/stats` counts all matching live Tasks independently of loaded pages. Search uses server title-or-Project-name matching.
+The Task page and Project detail load independent 20-row status columns with cursor controls. Home uses one combined 20-Task budget across all columns, with Dashboard-configured scope/Project and an optional smaller combined limit. Trash uses `deleted=true`, ignores board search, and has its own server total and pagination. `/tasks/stats` counts all matching live Tasks independently of loaded pages. Search uses server title-or-Project-name matching.
 
 Task and Project UUIDs, revisions and audit metadata come from the server. Project name and scope are derived display fields; no name-based relation lookup runs in API mode. Creation/reassignment uses active Projects. Existing archived relations may be retained, and Tasks in archived Projects can be restored. The editor preserves all six fields and drafts after errors; status controls, drag/drop, delete and restore wait for confirmed responses. Revision conflicts require fresh detail and explicit review/reapply. Creation retries reuse an immutable body/key for at most 24 hours; no automatic replay or browser persistence is added.
 
@@ -76,7 +88,21 @@ Task mutations invalidate Task lists/details/stats and Overview. Project changes
 
 Authenticated Journals use server DTOs and canonical Project UUIDs. The editable date is the date-only `entryDate`; `createdAt` and `updatedAt` remain audit timestamps. Requests preserve `YYYY-MM-DD` values and Journal bodies exactly, including whitespace and newlines. The Journal page delegates scope, Project, title/body/Project-name search, inclusive date bounds, newest/oldest ordering, totals and cursor pagination to the backend, and uses direct UUID reads for editor entry, conflict review and Project detail.
 
-Creation requires an active Project and keeps an in-memory Idempotency-Key/body intent for explicit same-key retries. PATCH sends the captured revision and dirty fields; permanent DELETE requires the revision and confirms `{deletedId}`. Conflicts, CSRF/network failures and failed reconciliation retain drafts or deletion context. Archived relations remain readable and editable for non-relation fields, while reassignment requires an active Project. Home and Project-detail recent Journal surfaces are read-only, newest ordered and limited to three by default without Dashboard API or saved-layout authority. Legacy `devspace.journals.v1` and fixtures remain preserved and unused by authenticated composition. Journal browser tests use port 4180.
+Creation requires an active Project and keeps an in-memory Idempotency-Key/body intent for explicit same-key retries. PATCH sends the captured revision and dirty fields; permanent DELETE requires the revision and confirms `{deletedId}`. Conflicts, CSRF/network failures and failed reconciliation retain drafts or deletion context. Archived relations remain readable and editable for non-relation fields, while reassignment requires an active Project. Home and Project-detail recent Journal surfaces are read-only, newest ordered and limited to three by default with Home scope/Project/limit supplied by Dashboard configuration. Legacy `devspace.journals.v1` and fixtures remain preserved and unused by authenticated composition. Journal browser tests use port 4180.
+
+## Links
+
+Library uses server scope/search and full collection ordering, with no pagination. Create/edit/permanent-delete are awaited; drafts survive failures and conflicts. Up/down ordering submits every live Link ID with collectionRevision. IDs, item revisions, positions and audit fields come from the backend. Home remains read-only, uses the configured Dashboard scope and shows the full bounded collection. Legacy `devspace.links.v1` stays preserved and unused.
+
+Run the Link browser suite with Vite on port 4182 and `LINK_REUSE_SERVER=1`: `npx playwright test --config playwright.links.config.ts`. Real disposable-backend acceptance is `node tests/real/run.mjs --links=final`, then its `--nginx` counterpart. See the [development guide](docs/guides/development.md) for visual and concurrency checks.
+
+## Milestones
+
+Project detail preserves the Milestone rows, Korean editor fields, completion/reopen controls and status filter with awaited API operations. Lists use server scope, Project UUID, Project status and `open|done|all` filters with 20-row cursor pagination and fixed completion/date/UUID ordering. Detail reads are independent of loaded pages. `dueDate` is nullable `YYYY-MM-DD` without timezone conversion; `completed` supplies all completion presentation. Status is only a query filter. Server UUID, revision and audit timestamps remain authoritative.
+
+Owned active **and archived** Projects allow creation, editing, reassignment and deletion. Project names/scopes are derived display fields; Project options paginate and selected relations resolve directly. Creation freezes an explicit-field body and Idempotency-Key for reviewed retries within 24 hours. PATCH sends intended fields and the captured revision. DELETE is permanent, sends revision in the query and validates `200 {deletedId}`. Conflicts and ambiguous outcomes require explicit direct-read reconciliation; drafts survive errors and same-identity revalidation, with no automatic business replay.
+
+Milestone and Project changes invalidate related list/detail/options/Home views. Home keeps the existing widget presentation with Dashboard-configured scope, initial `open` status and an omitted-limit default of two records, including overdue and undated rows in server order. It is read-only and navigates to canonical Project detail for management. The Milestone feature owns its data; Dashboard only supplies widget configuration. `devspace.milestones.v1` remains preserved and unused; no migration is performed. Browser tests use port 4181.
 
 ## Structure and scope
 
@@ -86,6 +112,8 @@ Creation requires an active Project and keeps an in-memory Idempotency-Key/body 
 - [PLAN-0007](docs/plans/PLAN-0007-project-overview-integration.md): Project/Overview contract, execution and validation evidence.
 - [PLAN-0008](docs/plans/PLAN-0008-task-integration.md): Task integration, preserved UI and validation evidence.
 - [PLAN-0009](docs/plans/PLAN-0009-journal-integration.md): Journal integration, preserved UI and final validation evidence.
+- [PLAN-0010](docs/plans/PLAN-0010-milestone-integration.md): Milestone integration, archived Project semantics, Home behavior and validation evidence.
+- [PLAN-0011](docs/plans/PLAN-0011-link-integration.md): Link collection/CRUD/reorder integration, preserved library/Home and validation evidence.
 - [Stabilization plan](docs/plans/PLAN-0003-frontend-stabilization.md): historical prototype scope retained for reference.
 
 The retained prototype includes project/task/journal/link/milestone CRUD, dashboard widgets, local persistence and accessibility workflows. Its providers, fixtures and legacy navigation remain available only to their separate regression harness. The [historical API proposal](docs/references/api/backend-api-contract.md) does not override the implemented backend contract referenced by PLAN-0006.

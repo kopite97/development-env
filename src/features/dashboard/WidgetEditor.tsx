@@ -1,27 +1,59 @@
 import { Check, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Field, Modal } from '../../shared/ui/controls';
 import { scopes, type Scope } from '../projects/scope';
 import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import { widgetTypes, type Widget, type WidgetType } from './model';
 import { widgetCatalog as registry } from './widgetCatalog';
 import { useProjects } from '../projects/ProjectsProvider';
-export function WidgetEditor({
-  existing,
-  onSave,
-  onClose,
-}: {
+import type { WidgetForm } from './draftMemory';
+export function WidgetEditor(props: {
   existing?: Widget;
   onSave: (widget: Widget) => void;
   onClose: () => void;
 }) {
-  const [type, setType] = useState<WidgetType>(existing?.type || 'overview');
-  const [scope, setScope] = useState<Scope>(existing?.scope || 'all');
-  const [title, setTitle] = useState(existing?.title || registry.overview.title);
-  const [size, setSize] = useState<Widget['size']>(existing?.size || 'medium');
   const { projects } = useProjects();
-  const [projectId, setProjectId] = useState(existing?.projectId ?? '');
-  const [limit, setLimit] = useState(existing?.limit?.toString() ?? '');
+  return <WidgetEditorView {...props} projects={projects} />;
+}
+export function WidgetEditorView({
+  existing,
+  onSave,
+  onClose,
+  projects,
+  restored,
+  onDraftChange,
+  feedback,
+  normalizeTitle = (value: string) => value.trim(),
+  unknownProjectLabel = '없는 프로젝트',
+}: {
+  existing?: Widget;
+  projects: { id: string; name: string; archived: boolean }[];
+  restored?: WidgetForm;
+  onDraftChange?: (form: WidgetForm) => void;
+  feedback?: ReactNode;
+  normalizeTitle?: (value: string) => string;
+  unknownProjectLabel?: string;
+  onSave: (widget: Widget) => void;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState<WidgetType>(restored?.type ?? existing?.type ?? 'overview');
+  const [scope, setScope] = useState<Scope>(restored?.scope ?? existing?.scope ?? 'all');
+  const [title, setTitle] = useState(restored?.title ?? existing?.title ?? registry.overview.title);
+  const [size, setSize] = useState<Widget['size']>(restored?.size ?? existing?.size ?? 'medium');
+  const [projectId, setProjectId] = useState(restored?.projectId ?? existing?.projectId ?? '');
+  const [limit, setLimit] = useState(restored?.limitText ?? existing?.limit?.toString() ?? '');
+  const [id] = useState(() => restored?.id ?? existing?.id ?? crypto.randomUUID());
+  useEffect(() => {
+    onDraftChange?.({
+      id,
+      type,
+      scope,
+      title,
+      size,
+      ...(projectId ? { projectId } : {}),
+      limitText: limit,
+    });
+  }, [id, type, scope, title, size, projectId, limit, onDraftChange]);
   const supportsProject = ['overview', 'board', 'journal', 'milestone'].includes(type);
   const canDiscard = useUnsavedChanges(
     type !== (existing?.type || 'overview') ||
@@ -41,10 +73,10 @@ export function WidgetEditor({
         onSubmit={(e) => {
           e.preventDefault();
           onSave({
-            id: existing?.id || crypto.randomUUID(),
+            id,
             type,
             scope,
-            title: title.trim() || registry[type].title,
+            title: normalizeTitle(title) || registry[type].title,
             size,
             ...(supportsProject && projectId ? { projectId } : {}),
             ...(supportsProject && limit ? { limit: Number(limit) } : {}),
@@ -102,7 +134,7 @@ export function WidgetEditor({
                 >
                   <option value="">분야 범위 사용</option>
                   {projectId && !projects.some((p) => p.id === projectId) && (
-                    <option value={projectId}>없는 프로젝트</option>
+                    <option value={projectId}>{unknownProjectLabel}</option>
                   )}
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -133,6 +165,7 @@ export function WidgetEditor({
             </select>
           </Field>
         </div>
+        {feedback}
         <div className="modal-actions">
           <Button type="button" onClick={close}>
             취소

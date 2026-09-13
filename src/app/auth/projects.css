@@ -5,14 +5,14 @@
   align-items: end;
   margin: 16px 0;
 }
-.auth-card label:not(.task-surface *) {
+.auth-card label:not(.task-surface *, .milestone-surface *, .link-surface *) {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
-.auth-card input:not(.task-surface *),
-.auth-card select:not(.task-surface *),
-.auth-card textarea:not(.task-surface *) {
+.auth-card input:not(.task-surface *, .milestone-surface *, .link-surface *),
+.auth-card select:not(.task-surface *, .milestone-surface *, .link-surface *),
+.auth-card textarea:not(.task-surface *, .milestone-surface *, .link-surface *) {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;

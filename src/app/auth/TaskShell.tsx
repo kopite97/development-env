@@ -21,12 +21,14 @@ export function TaskShell({
   overview,
   children,
   avatar,
+  page = '작업 보드',
 }: {
   url: URL;
   onNavigate: (path: string) => void;
   overview: OverviewStore;
   children: ReactNode;
   avatar: string;
+  page?: PageId;
 }) {
   const menu = useMobileNavigation(url.pathname + url.search);
   const [profile, setProfile] = useState(false);
@@ -38,13 +40,19 @@ export function TaskShell({
         mobileNav={menu.isOpen}
         menuRef={menu.menuRef}
         onNavigate={menu.close}
-        page="작업 보드"
+        page={page}
         avatar={avatar}
         navigate={(page) => {
           onNavigate(paths[page]);
           menu.close();
         }}
-        setFilter={(scope) => onNavigate('/projects?scope=' + scope)}
+        setFilter={(scope) =>
+          onNavigate(
+            (page === '나의 홈' ? '/' : page === '자료실' ? '/library' : '/projects') +
+              '?scope=' +
+              scope,
+          )
+        }
         counts={{
           all: projects ? projects.total : '—',
           unity: projects ? projects.byScope.unity.total : '—',
@@ -66,7 +74,7 @@ export function TaskShell({
       )}
       <div className="main-shell" inert={menu.isOpen}>
         <TopbarView
-          page="작업 보드"
+          page={page}
           avatar={avatar}
           onMenu={menu.open}
           menuOpen={menu.isOpen}
@@ -90,7 +98,8 @@ export function TaskShell({
           returnFocusRef={menu.triggerRef}
         >
           <p className="detail-body">
-            프로젝트와 태스크는 로그인한 작업실의 서버 데이터입니다. 다른 기능은 연동 준비 중입니다.
+            홈 배치와 프로젝트, 작업, 일지, 마일스톤, 링크는 로그인한 작업실의 서버 데이터입니다.
+            운영 위젯은 예시 화면입니다.
           </p>
           <div className="modal-actions">
             <Button onClick={() => setProfile(false)}>닫기</Button>

@@ -1,3 +1,4 @@
+import { dashboardHandoff } from './dashboardHandoff';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AuthSession } from './session';
 import { connectAuthHints } from './crossTab';
@@ -6,13 +7,18 @@ import { PrivateWorkspace } from './PrivateWorkspace';
 import { projectHandoff } from './projectHandoff';
 import { taskHandoff } from './taskHandoff';
 import { journalHandoff } from './journalHandoff';
+import { linkHandoff } from './linkHandoff';
+import { milestoneHandoff } from './milestoneHandoff';
 import { confirmNavigation } from '../../shared/lib/navigationGuard';
 import './auth.css';
 
 const session = new AuthSession();
+const getDashboardMemory = dashboardHandoff(session);
 const getProjectMemory = projectHandoff(session);
 const getTaskMemory = taskHandoff(session);
 const getJournalMemory = journalHandoff(session);
+const getLinkMemory = linkHandoff(session);
+const getMilestoneMemory = milestoneHandoff(session);
 
 export function AuthApp() {
   const [url, setUrl] = useState(() => new URL(window.location.href));
@@ -23,7 +29,15 @@ export function AuthApp() {
     if (path === window.location.pathname + window.location.search) return;
     if (
       !confirmNavigation(
-        Boolean(getProjectMemory().editor || getTaskMemory().editor || getJournalMemory().editor),
+        Boolean(
+          getProjectMemory().editor ||
+          getTaskMemory().editor ||
+          getJournalMemory().editor ||
+          getMilestoneMemory().editor ||
+          getLinkMemory().editor ||
+          getDashboardMemory().editor ||
+          Object.values(getDashboardMemory().tasks).some((memory) => memory.editor),
+        ),
         'Discard this draft? An unconfirmed creation may already exist. Review Projects before creating again.',
       )
     )
@@ -31,6 +45,10 @@ export function AuthApp() {
     getProjectMemory().editor = undefined;
     getTaskMemory().editor = undefined;
     getJournalMemory().editor = undefined;
+    getMilestoneMemory().editor = undefined;
+    getLinkMemory().editor = undefined;
+    getDashboardMemory().editor = undefined;
+    for (const memory of Object.values(getDashboardMemory().tasks)) memory.editor = undefined;
     if (replace)
       window.history.replaceState({ projectNavigationIndex: historyIndex.current }, '', path);
     else window.history.pushState({ projectNavigationIndex: ++historyIndex.current }, '', path);
@@ -69,7 +87,15 @@ export function AuthApp() {
           : 0;
       if (
         !confirmNavigation(
-          Boolean(getProjectMemory().editor || getTaskMemory().editor || getJournalMemory().editor),
+          Boolean(
+            getProjectMemory().editor ||
+            getTaskMemory().editor ||
+            getJournalMemory().editor ||
+            getMilestoneMemory().editor ||
+            getLinkMemory().editor ||
+            getDashboardMemory().editor ||
+            Object.values(getDashboardMemory().tasks).some((memory) => memory.editor),
+          ),
           'Discard this draft? An unconfirmed creation may already exist.',
         )
       ) {
@@ -88,6 +114,10 @@ export function AuthApp() {
       getProjectMemory().editor = undefined;
       getTaskMemory().editor = undefined;
       getJournalMemory().editor = undefined;
+      getMilestoneMemory().editor = undefined;
+      getLinkMemory().editor = undefined;
+      getDashboardMemory().editor = undefined;
+      for (const memory of Object.values(getDashboardMemory().tasks)) memory.editor = undefined;
       historyIndex.current = next;
       locationRef.current = new URL(window.location.href);
       setUrl(locationRef.current);
@@ -110,7 +140,8 @@ export function AuthApp() {
   }, [intent]);
   const handleLogin = () =>
     session.login(() => window.location.assign(loginUrl(intent.url.pathname + intent.url.search)));
-  const taskScreen = state.kind === 'authenticated' && url.pathname === '/tasks' && !busy;
+  const taskScreen =
+    state.kind === 'authenticated' && ['/', '/tasks', '/library'].includes(url.pathname) && !busy;
   return (
     <div
       className={taskScreen ? 'authenticated-task-screen' : 'auth-app'}
@@ -166,6 +197,7 @@ export function AuthApp() {
         <section
           key={`${state.identity.id}:${state.identity.workspace.id}:${state.generation}`}
           className={taskScreen ? 'task-workspace' : 'auth-card'}
+          aria-label={state.identity.displayName + ' · ' + state.identity.workspace.name}
         >
           <div className="auth-identity" hidden={taskScreen}>
             <span className="auth-avatar" aria-hidden="true">
@@ -212,12 +244,21 @@ export function AuthApp() {
               memory={getProjectMemory()}
               taskMemory={getTaskMemory()}
               journalMemory={getJournalMemory()}
+              milestoneMemory={getMilestoneMemory()}
+              linkMemory={getLinkMemory()}
+              dashboardMemory={getDashboardMemory()}
               avatar={Array.from(state.identity.displayName)[0] ?? ''}
             />
           )}
           {notice && <p role="alert">{notice}</p>}
           <button
-            className={taskScreen ? 'task-session-logout button' : undefined}
+            className={
+              taskScreen
+                ? url.pathname === '/'
+                  ? 'dashboard-session-logout button button-secondary'
+                  : 'task-session-logout button'
+                : undefined
+            }
             type="button"
             disabled={busy || logoutBlocked}
             onClick={() => void session.logout()}

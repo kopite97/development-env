@@ -101,10 +101,10 @@ test('Home recent Journal is read-only, newest and bounded to the approved defau
     });
   });
   await page.goto('/');
-  await expect(page.locator('.journal-home-surface .journal-row')).toHaveCount(3);
+  await expect(page.locator('.journal-surface .journal-row')).toHaveCount(3);
   expect(request?.searchParams.get('sort')).toBe('newest');
   expect(request?.searchParams.get('limit')).toBe('3');
-  await expect(page.locator('.journal-home-surface button')).toHaveCount(3);
+  await expect(page.locator('.journal-surface button')).toHaveCount(3);
   await page.screenshot({ path: 'test-results/journal-home-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(

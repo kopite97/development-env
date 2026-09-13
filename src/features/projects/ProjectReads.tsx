@@ -178,7 +178,7 @@ function VerifiedDetail({
             Updated: {state.data.updatedAt}
           </p>
           {children?.(state.data, state.status === 'ready' && !state.stale)}
-          <p>Milestone and Link integration pending.</p>
+          <p>Link integration pending.</p>
         </>
       )}
       <button disabled={state.status === 'loading'} onClick={() => query.invalidate()}>

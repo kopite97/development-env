@@ -24,6 +24,9 @@ At most one plan may be `active` at a time.
 | 7     | completed | [Project and Overview integration](PLAN-0007-project-overview-integration.md)                     | Completed 2026-09-13; 99 unit, 76 browser and 183 backend tests; real Vite/Nginx passed.                                                        |
 | 8     | completed | [Task integration without UI redesign](PLAN-0008-task-integration.md)                             | Completed 2026-09-13; 112 unit, 97 browser and 183 backend tests; real Vite/Nginx and UI parity passed.                                         |
 | 9     | completed | [Journal integration](PLAN-0009-journal-integration.md)                                           | Completed 2026-09-13; 122 unit, 7 Journal, 35 legacy, 20 auth, 21 Project, 21 Task browser tests; real Vite/Nginx and 183 backend tests passed. |
+| 10    | completed | [Milestone integration](PLAN-0010-milestone-integration.md)                                       | Completed 2026-09-13; 134 unit, 117 browser and 183 backend tests; real Vite/Nginx and Milestone visual parity passed.                          |
+| 11    | completed | [Link integration](PLAN-0011-link-integration.md)                                                 | Completed 2026-09-14; 145 unit, 132 browser and 183 backend tests; real Vite/Nginx, Link order/conflicts and visual parity passed.              |
+| 12    | completed | [Home Dashboard integration](PLAN-0012-dashboard-integration.md)                                  | Completed 2026-09-14; 156 unit, 150 browser, 183 backend; final Vite/fresh Nginx and matched Home/editor visual geometry passed.                |
 
 Both plans were registered as proposed on 2026-09-10. The user explicitly requested creating and immediately executing these plans in that session; this is authorization for their sequential activation.
 
@@ -38,6 +41,12 @@ PLAN-0007 was registered as `proposed` on 2026-09-13 for Plan creation only. Exp
 PLAN-0008 was registered as `proposed` on 2026-09-13 for Plan creation only. Explicitly approved and activated on 2026-09-13, including all approval candidates and temporary Task-only Home behavior. All six sessions completed on that date with final validation evidence in the Plan. Existing Task UI and legacy storage are preserved. Other Plan statuses remain unchanged.
 
 PLAN-0009 was registered as `proposed` on 2026-09-13 for Plan creation only, then explicitly approved and activated on that date, including all contract candidates and the authenticated Home recent-Journal surface: read-only, newest-first, default limit three unless an explicit limit exists, with no Dashboard API or saved-layout authority. All six sessions completed with final validation evidence recorded in the Plan; existing Journal UI and legacy storage remain preserved and isolated.
+
+PLAN-0010 was registered as `proposed` on 2026-09-13 for Plan creation only. Live generated OpenAPI and current backend source were inspected; the user subsequently approved all candidates and read-only unity/open/default-two Home behavior. All six sessions completed with final validation and recovery evidence in the Plan; legacy storage remains untouched and no backend changes or Dashboard API integration were introduced. Existing completed Plan statuses remain unchanged.
+
+PLAN-0011 was registered as `proposed` on 2026-09-14 for Plan creation only. Live generated OpenAPI and current backend source were verified. Explicitly approved and activated on 2026-09-14 with all candidates; all six sessions completed with final validation and recovery evidence recorded in the Plan. Existing Link ordering/UI and legacy storage are preserved; no backend or Dashboard API changes. Other completed Plan statuses remain unchanged.
+
+PLAN-0012 was registered as `proposed` on 2026-09-14 for Plan creation only. Live generated Dashboard OpenAPI and current backend source were verified. Explicitly approved and activated on 2026-09-14 with all compatibility candidates; all six sessions completed with final validation and recovery evidence in the Plan. Home now uses Dashboard authority while preserving its UI and legacy storage. Existing completed statuses remain unchanged.
 
 ## Rules
 

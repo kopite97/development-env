@@ -44,8 +44,11 @@ test('failed counters never become zero, while valid zero snapshots remain usabl
 }) => {
   await setup(page);
   let fail = true;
+  await page.route('**/api/v1/projects?*', (route) =>
+    route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
+  );
   await page.route('**/api/v1/overview?*', (route) => {
-    const data = overview();
+    const data = overview(new URL(route.request().url()).searchParams.get('scope') ?? 'all');
     data.projects = {
       total: 0,
       archived: 0,
@@ -55,9 +58,10 @@ test('failed counters never become zero, while valid zero snapshots remain usabl
     return fail ? route.fulfill({ status: 503, json: {} }) : route.fulfill({ json: data });
   });
   await page.goto('/');
-  await expect(page.getByRole('alert')).toContainText('Counters unavailable');
-  await expect(page.locator('dd')).toHaveCount(0);
+  const home = page.locator('[data-widget-id="overview"]');
+  await expect(home.getByText('집계를 불러오지 못했습니다.', { exact: false })).toBeVisible();
+  await expect(home.locator('.stats strong')).toHaveText(['—개', '—개', '—개']);
   fail = false;
-  await page.getByRole('button', { name: 'Refresh counters' }).click();
-  await expect(page.locator('dd')).toHaveText(['0', '0', '0', '0', '0', '0']);
+  await home.getByRole('button', { name: '집계 다시 시도' }).click();
+  await expect(home.locator('.stats strong')).toHaveText(['0개', '0개', '0개']);
 });

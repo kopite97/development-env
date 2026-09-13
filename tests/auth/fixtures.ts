@@ -1,3 +1,4 @@
+import { defaultLayout as savedHomeFixture } from '../../src/features/dashboard/model';
 import { test as base, expect } from '@playwright/test';
 const sentinels = Object.fromEntries(
   ['projects', 'tasks', 'journals', 'milestones', 'links', 'layout', 'unrelated'].map(
@@ -15,7 +16,7 @@ export const test = base.extend<{ authIsolation: void }>({
         const path = new URL(request.url()).pathname;
         if (
           path.startsWith('/api/') &&
-          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|overview$)/.test(
+          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$)/.test(
             path,
           )
         )
@@ -64,8 +65,19 @@ export const test = base.extend<{ authIsolation: void }>({
           json: { counts: { todo: 0, doing: 0, done: 0 }, total: 0, asOf: '2026-09-13T00:00:00Z' },
         }),
       );
+      await context.route('**/api/v1/links?*', (route) =>
+        route.fulfill({ json: { items: [], total: 0, nextCursor: null, collectionRevision: 0 } }),
+      );
+      await context.route('**/api/v1/milestones?*', (route) =>
+        route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
+      );
       await context.route('**/api/v1/journals?*', (route) =>
         route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
+      );
+      await context.route('**/api/v1/dashboards/home', (route) =>
+        route.fulfill({
+          json: { id: 'home', schemaVersion: 1, revision: 1, widgets: savedHomeFixture },
+        }),
       );
       await use();
       expect(excluded).toEqual([]);

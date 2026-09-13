@@ -19,6 +19,10 @@
   bottom: 8px;
   z-index: 5;
 }
+.dashboard-session-logout.button {
+  display: block;
+  margin: 0 20px 20px auto;
+}
 .auth-header {
   display: flex;
   align-items: center;
@@ -42,15 +46,15 @@
   border-radius: var(--radius);
   padding: clamp(20px, 5vw, 40px);
 }
-.auth-card h2:not(.task-surface *) {
+.auth-card h2:not(.task-surface *, .milestone-surface *, .link-surface *) {
   margin: 0 0 12px;
   font-size: 24px;
 }
-.auth-card p:not(.task-surface *) {
+.auth-card p:not(.task-surface *, .milestone-surface *, .link-surface *) {
   color: var(--muted);
   line-height: 1.7;
 }
-.auth-card button:not(.task-surface *) {
+.auth-card button:not(.task-surface *, .milestone-surface *, .link-surface *) {
   border: 0;
   border-radius: 8px;
   background: var(--accent);
@@ -60,11 +64,11 @@
   cursor: pointer;
   min-height: 44px;
 }
-.auth-card button:not(.task-surface *):disabled {
+.auth-card button:not(.task-surface *, .milestone-surface *, .link-surface *):disabled {
   opacity: 0.6;
   cursor: wait;
 }
-.auth-app :focus-visible {
+.auth-app :focus-visible:not(.milestone-surface *, .link-surface *) {
   outline: 3px solid var(--accent);
   outline-offset: 4px;
 }
@@ -93,7 +97,7 @@
   gap: 12px 20px;
   margin: 28px 0;
 }
-.auth-card a {
+.auth-card a:not(.link-surface *) {
   color: var(--accent);
 }
 .auth-pending {

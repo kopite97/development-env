@@ -11,7 +11,7 @@ export const projectIcons: Record<string, LucideIcon> = {
 };
 export function ProjectOverview({
   scope,
-  tasks,
+  tasks = [],
   onOpen,
   search = '',
   projects,
@@ -20,9 +20,13 @@ export function ProjectOverview({
   archived = false,
   limit,
   projectOnly = false,
+  counts,
+  hideEmpty = false,
 }: {
   scope: Scope;
-  tasks: { scope: Exclude<Scope, 'all'>; status: 'todo' | 'doing' | 'done' }[];
+  tasks?: { scope: Exclude<Scope, 'all'>; status: 'todo' | 'doing' | 'done' }[];
+  counts?: { projects?: number; doing?: number; done?: number };
+  hideEmpty?: boolean;
   onOpen: (id: string) => void;
   search?: string;
   projects: Project[];
@@ -45,27 +49,27 @@ export function ProjectOverview({
         <div>
           <span>{archived ? '보관된 프로젝트' : '현재 프로젝트'}</span>
           <strong>
-            {total}
+            {counts ? (counts.projects ?? '—') : total}
             <small>개</small>
           </strong>
         </div>
         <div>
           <span>{projectOnly ? '프로젝트 진행 중인 작업' : '분야 전체 진행 중인 작업'}</span>
           <strong>
-            {filtered.filter((t) => t.status === 'doing').length}
+            {counts ? (counts.doing ?? '—') : filtered.filter((t) => t.status === 'doing').length}
             <small>개</small>
           </strong>
         </div>
         <div>
           <span>{projectOnly ? '프로젝트 완료한 작업' : '분야 전체 완료한 작업'}</span>
           <strong>
-            {filtered.filter((t) => t.status === 'done').length}
+            {counts ? (counts.done ?? '—') : filtered.filter((t) => t.status === 'done').length}
             <small>개</small>
           </strong>
         </div>
       </div>
       {search && <p role="status">검색 결과 {list.length}개</p>}
-      {!list.length && (
+      {!hideEmpty && !list.length && (
         <EmptyState
           title={
             search || scope !== 'all'

@@ -1,6 +1,9 @@
+import { validateLinks } from './links.mjs';
+import { validateDashboard } from './dashboard.mjs';
 import { validateProjects } from './projects.mjs';
 import { validateTasks } from './tasks.mjs';
 import { validateJournals } from './journals.mjs';
+import { validateMilestones } from './milestones.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,6 +25,9 @@ if (!backend) throw new Error('No sibling backend checkout with gradlew.bat was 
 const phase = process.argv.find((arg) => arg.startsWith('--projects='))?.split('=')[1];
 const taskPhase = process.argv.find((arg) => arg.startsWith('--tasks='))?.split('=')[1];
 const journalPhase = process.argv.find((arg) => arg.startsWith('--journals='))?.split('=')[1];
+const milestonePhase = process.argv.find((arg) => arg.startsWith('--milestones='))?.split('=')[1];
+const linkPhase = process.argv.find((arg) => arg.startsWith('--links='))?.split('=')[1];
+const dashboardPhase = process.argv.find((arg) => arg.startsWith('--dashboard='))?.split('=')[1];
 const nginx = process.argv.includes('--nginx');
 const origin = nginx ? 'http://127.0.0.1:4177' : 'http://127.0.0.1:4175';
 const output = path.join(root, '.auth-validation', nginx ? 'nginx' : 'vite');
@@ -187,7 +193,7 @@ try {
     const url = new URL(request.url());
     if (
       url.pathname.startsWith('/api/') &&
-      !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|overview$)/.test(
+      !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$)/.test(
         url.pathname,
       )
     )
@@ -274,6 +280,11 @@ try {
     await validateTasks({ page, context, origin, sql, alice, output, phase: taskPhase });
   if (journalPhase)
     await validateJournals({ page, context, origin, sql, alice, output, phase: journalPhase });
+  if (linkPhase)
+    await validateLinks({ page, context, origin, sql, alice, output, phase: linkPhase });
+  if (milestonePhase)
+    await validateMilestones({ page, context, origin, sql, alice, output, phase: milestonePhase });
+  if (dashboardPhase) await validateDashboard({ page, context, origin, sql, alice, output });
   const csrf = await context.request.get(origin + '/api/v1/auth/csrf');
   assert.equal(csrf.status(), 200);
   const token = (await csrf.json()).csrfToken;
@@ -302,7 +313,7 @@ try {
   await page.goto(origin);
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await page.getByRole('link', { name: 'bob', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Bob Example', exact: true })).toBeVisible();
+  await expect(page.locator('.task-workspace')).toHaveAttribute('aria-label', /^Bob Example · /);
   const bob = await (await context.request.get(origin + '/api/v1/me')).json();
   assert.notEqual(bob.id, alice.id);
   assert.notEqual(bob.workspace.id, alice.workspace.id);
@@ -319,12 +330,14 @@ try {
     )[0],
     alice.id,
   );
-  const uiLogoutResponse = page.waitForResponse(
-    (response) =>
-      response.url() === origin + '/api/v1/auth/logout' && response.request().method() === 'POST',
-  );
-  await page.getByRole('button', { name: 'Log out', exact: true }).click();
-  assert.equal((await uiLogoutResponse).status(), 204);
+  const [uiLogoutResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url() === origin + '/api/v1/auth/logout' && response.request().method() === 'POST',
+    ),
+    page.getByRole('button', { name: 'Log out', exact: true }).click(),
+  ]);
+  assert.equal(uiLogoutResponse.status(), 204);
   await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
   await page.goto(origin);
   await page.getByRole('button', { name: 'Continue with Google' }).click();

@@ -34,6 +34,7 @@ export function WidgetFrame({
   const Icon = registry[widget.type].icon;
   return (
     <section
+      data-widget-id={widget.id}
       className={`widget widget-${widget.size} ${dragging ? 'dragging' : ''}`}
       onDragOver={(e) => {
         if (editing) e.preventDefault();
