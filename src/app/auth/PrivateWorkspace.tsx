@@ -13,6 +13,12 @@ import { taskProjectOptions } from './taskProjectOptions';
 import type { TaskMemory } from '../../features/tasks/draftMemory';
 import { ServerTaskHome } from '../../pages/ServerTaskHome';
 import { ApiTaskManager } from '../../features/tasks/ApiTaskManager';
+import { JournalStore } from '../../features/journal/apiStore';
+import type { JournalMemory } from '../../features/journal/draftMemory';
+import { journalProjectOptions } from './journalProjectOptions';
+import { ServerJournalsPage } from '../../pages/ServerJournalsPage';
+import { ServerJournalHome } from '../../pages/ServerJournalHome';
+import { ApiRecentJournals } from '../../features/journal/ApiRecentJournals';
 export function PrivateWorkspace({
   transport,
   url,
@@ -20,6 +26,7 @@ export function PrivateWorkspace({
   memory,
   avatar = '',
   taskMemory,
+  journalMemory,
 }: {
   transport: PrivateTransport;
   url: URL;
@@ -27,15 +34,20 @@ export function PrivateWorkspace({
   memory: DraftMemory;
   avatar?: string;
   taskMemory: TaskMemory;
+  journalMemory: JournalMemory;
 }) {
   const [projects] = useState(() => new ProjectStore(transport));
   const [overview] = useState(() => new OverviewStore(transport));
   const [tasks] = useState(() => new TaskStore(transport));
+  const [journals] = useState(() => new JournalStore(transport));
   const [options] = useState(() => taskProjectOptions(projects));
+  const [journalOptions] = useState(() => journalProjectOptions(projects));
   tasks.onInvalidate = () => overview.invalidate();
   projects.onInvalidate = () => {
     options.invalidate();
     tasks.invalidate();
+    journalOptions.invalidate();
+    journals.invalidate();
   };
   const mounts = useRef(0);
   useEffect(() => {
@@ -48,10 +60,12 @@ export function PrivateWorkspace({
           overview.dispose();
           tasks.dispose();
           options.dispose();
+          journals.dispose();
+          journalOptions.dispose();
         }
       });
     };
-  }, [projects, overview, tasks, options]);
+  }, [projects, overview, tasks, options, journals, journalOptions]);
   if (url.pathname === '/tasks')
     return (
       <TaskShell url={url} onNavigate={onNavigate} overview={overview} avatar={avatar}>
@@ -85,6 +99,22 @@ export function PrivateWorkspace({
             />
           </section>
         )}
+        renderJournals={(id) => (
+          <section className="journal-surface content-panel">
+            <h2>개발 일지</h2>
+            <ApiRecentJournals store={journals} projectId={id} limit={3} />
+          </section>
+        )}
+      />
+    );
+  if (url.pathname === '/journals')
+    return (
+      <ServerJournalsPage
+        store={journals}
+        options={journalOptions}
+        memory={journalMemory}
+        url={url}
+        onFilterNavigate={(path) => onNavigate(path, true)}
       />
     );
   if (url.pathname === '/')
@@ -92,6 +122,7 @@ export function PrivateWorkspace({
       <>
         <OverviewSummary store={overview} filter={{ scope: 'all' }} />
         <ServerTaskHome store={tasks} options={options} memory={taskMemory} />
+        <ServerJournalHome store={journals} />
       </>
     );
   return (

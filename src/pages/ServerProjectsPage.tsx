@@ -14,6 +14,7 @@ export function ServerProjectsPage({
   onNavigate,
   memory,
   renderTasks,
+  renderJournals,
 }: {
   store: ProjectStore;
   overview: OverviewStore;
@@ -21,6 +22,7 @@ export function ServerProjectsPage({
   onNavigate: (path: string) => void;
   memory: DraftMemory;
   renderTasks?: (id: string) => ReactNode;
+  renderJournals?: (id: string) => ReactNode;
 }) {
   const [creating, setCreating] = useState(memory.editor?.target === 'create');
   const params = url.searchParams;
@@ -63,6 +65,7 @@ export function ServerProjectsPage({
                   onSaved={() => {}}
                 />
                 {verified && renderTasks?.(project.id)}
+                {verified && renderJournals?.(project.id)}
               </>
             )}
           </ProjectDetailView>

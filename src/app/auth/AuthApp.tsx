@@ -5,12 +5,14 @@ import { consumeLoginError, loginUrl } from './routeIntent';
 import { PrivateWorkspace } from './PrivateWorkspace';
 import { projectHandoff } from './projectHandoff';
 import { taskHandoff } from './taskHandoff';
+import { journalHandoff } from './journalHandoff';
 import { confirmNavigation } from '../../shared/lib/navigationGuard';
 import './auth.css';
 
 const session = new AuthSession();
 const getProjectMemory = projectHandoff(session);
 const getTaskMemory = taskHandoff(session);
+const getJournalMemory = journalHandoff(session);
 
 export function AuthApp() {
   const [url, setUrl] = useState(() => new URL(window.location.href));
@@ -21,13 +23,14 @@ export function AuthApp() {
     if (path === window.location.pathname + window.location.search) return;
     if (
       !confirmNavigation(
-        Boolean(getProjectMemory().editor || getTaskMemory().editor),
+        Boolean(getProjectMemory().editor || getTaskMemory().editor || getJournalMemory().editor),
         'Discard this draft? An unconfirmed creation may already exist. Review Projects before creating again.',
       )
     )
       return;
     getProjectMemory().editor = undefined;
     getTaskMemory().editor = undefined;
+    getJournalMemory().editor = undefined;
     if (replace)
       window.history.replaceState({ projectNavigationIndex: historyIndex.current }, '', path);
     else window.history.pushState({ projectNavigationIndex: ++historyIndex.current }, '', path);
@@ -66,7 +69,7 @@ export function AuthApp() {
           : 0;
       if (
         !confirmNavigation(
-          Boolean(getProjectMemory().editor || getTaskMemory().editor),
+          Boolean(getProjectMemory().editor || getTaskMemory().editor || getJournalMemory().editor),
           'Discard this draft? An unconfirmed creation may already exist.',
         )
       ) {
@@ -84,6 +87,7 @@ export function AuthApp() {
       }
       getProjectMemory().editor = undefined;
       getTaskMemory().editor = undefined;
+      getJournalMemory().editor = undefined;
       historyIndex.current = next;
       locationRef.current = new URL(window.location.href);
       setUrl(locationRef.current);
@@ -207,6 +211,7 @@ export function AuthApp() {
               onNavigate={handleNavigate}
               memory={getProjectMemory()}
               taskMemory={getTaskMemory()}
+              journalMemory={getJournalMemory()}
               avatar={Array.from(state.identity.displayName)[0] ?? ''}
             />
           )}

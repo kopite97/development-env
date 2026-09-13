@@ -12,7 +12,8 @@
 2. Run `npm run build` for TypeScript checking and a production build.
 3. Run `npm test` for unit tests.
 4. Run `npm run format:check` and distinguish existing formatting issues from changed-file issues.
-5. Install Chromium once with `npx playwright install chromium`, then run `npm run test:e2e`. Playwright starts a Vite server on port 4175.
+5. Install Chromium once with `npx playwright install chromium`, then run `npm run test:e2e`. Playwright starts the isolated legacy Vite server on port 4175.
+6. Run the authenticated Journal suite with a Vite server on port 4180: start `npm run dev -- --port 4180 --strictPort`, set `JOURNAL_REUSE_SERVER=1`, and run `npx playwright test --config playwright.journals.config.ts`.
 
 With a dev server running, `node tools/capture-structure.mjs http://127.0.0.1:5173` captures desktop/mobile route screenshots and checks headings, page errors, and horizontal overflow. Results are written to the ignored `test-results/structure/` directory.
 

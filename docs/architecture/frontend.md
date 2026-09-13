@@ -2,7 +2,7 @@
 
 ## Composition
 
-The entry is [main.tsx](../../src/main.tsx), which renders [app/App.tsx](../../src/app/App.tsx). App composes the app-owned [AuthApp](../../src/app/auth/AuthApp.tsx) and [AuthSession](../../src/app/auth/session.ts). GET /api/v1/me gates five distinct states: checking, unauthenticated, disabled, bootstrap-error and authenticated. The authenticated shell displays server User/PersonalWorkspace, API-backed Project pages and Overview counters. It mounts none of the legacy business providers. Identity is partitioned by User ID, Workspace ID and independent session generation; Workspace revision is not a session counter.
+The entry is [main.tsx](../../src/main.tsx), which renders [app/App.tsx](../../src/app/App.tsx). App composes the app-owned [AuthApp](../../src/app/auth/AuthApp.tsx) and [AuthSession](../../src/app/auth/session.ts). GET /api/v1/me gates five distinct states: checking, unauthenticated, disabled, bootstrap-error and authenticated. The authenticated shell displays server User/PersonalWorkspace, API-backed Project, Overview and Journal surfaces. It mounts none of the legacy business providers. Identity is partitioned by User ID, Workspace ID and independent session generation; Workspace revision is not a session counter.
 
 ```text
 src/
@@ -43,7 +43,7 @@ Cross-tab BroadcastChannel messages contain only a change hint, never identity o
 
 ## Authenticated Projects and Overview
 
-[PrivateWorkspace](../../src/app/auth/PrivateWorkspace.tsx) composes isolated feature stores with the existing AuthSession transport and captured generation. [ServerProjectsPage](../../src/pages/ServerProjectsPage.tsx) joins Project UI, Overview and Tasks by validated server UUID without a cross-feature import. Root shows global Overview and the temporary Task-only Home board; `/tasks` uses the preserved Task shell. Journal and Library routes remain pending. App-owned history guards ordinary draft/pending navigation with one confirmation; auth teardown takes precedence.
+[PrivateWorkspace](../../src/app/auth/PrivateWorkspace.tsx) composes isolated feature stores with the existing AuthSession transport and captured generation. [ServerProjectsPage](../../src/pages/ServerProjectsPage.tsx) joins Project UI, Overview, Tasks and the bounded recent-Journal view by validated server UUID without a cross-feature import. Root shows global Overview, the temporary Task-only Home board and a read-only newest Journal widget; `/tasks` uses the preserved Task shell and `/journals` uses the preserved Journal presentation with server reads. Library remains pending. App-owned history guards ordinary draft/pending navigation with one confirmation; auth teardown takes precedence.
 
 [Project API models](../../src/features/projects/apiModel.ts) validate UUID/revision/audit metadata and explicitly serialize writable fields. Presentation maps currentMilestone to the memo, status to archived, and colorToken to a visual class. No fixture lookup or local UUID generation supplies resource identity. Creation keys are operation identifiers only.
 
@@ -53,7 +53,15 @@ Queries combine AbortControllers, generation checks and request sequencing. Muta
 
 [ApiProjectEditor](../../src/features/projects/ApiProjectEditor.tsx) freezes creation key/body/time, bounds replay to 24 hours, submits dirty-field PATCHes with captured revision and requires explicit review for conflict/ambiguity. [Project handoff](../../src/app/auth/projectHandoff.ts) retains detached memory-only drafts solely across same-identity verification. Login/logout/session loss/account change destroys them. No restored draft automatically dispatches. Bounded Project CSRF recovery reuses AuthSession verification/token acquisition without automatic mutation replay.
 
-Task, Journal, Milestone, Link and Dashboard APIs/providers remain excluded. All legacy storage stays preserved and unused by authenticated composition. See [PLAN-0007](../plans/PLAN-0007-project-overview-integration.md).
+Milestone, Link and Dashboard APIs/providers remain excluded. Authenticated Journal composition uses [JournalStore](../../src/features/journal/apiStore.ts), while all legacy storage stays preserved and unused by authenticated composition. See [PLAN-0009](../plans/PLAN-0009-journal-integration.md).
+
+## Authenticated Journals
+
+[JournalStore](../../src/features/journal/apiStore.ts) validates the implemented Journal response, keeps per-filter cursor chains and direct UUID detail queries, and rejects obsolete results after request cancellation, mutation invalidation or session-generation changes. List requests send server scope, canonical `projectId`, project status, literal title/body/Project-name query, inclusive `from`/`to` dates, newest/oldest order and a bounded limit. A missing loaded row or exhausted page never establishes resource absence; editor entry, conflict review and selected Project views use `GET /api/v1/journals/{id}`.
+
+The API model separates the editable `entryDate` calendar string from read-only `createdAt` and `updatedAt` audit timestamps. Date inputs and serializers keep `YYYY-MM-DD` values unchanged, without timezone or local-noon conversion. Bodies retain whitespace and newlines. Creation requires an active server Project and an in-memory Idempotency-Key/body intent for explicit replay within the backend window. PATCH sends the captured revision and dirty fields; permanent DELETE requires that revision and confirms the returned `deletedId`. Conflicts, CSRF failures, network failures and failed reconciliation retain drafts or deletion context for explicit review and retry.
+
+Project options are injected from the app-owned ProjectStore. Active options are paginated; a selected archived Project is fetched directly and remains available for retaining its relation while reassignment is restricted to active Projects. Project mutations invalidate Journal lists, details, option queries and bounded recent widgets. Journal mutations invalidate all Journal read surfaces. The Home and Project-detail widgets are read-only, newest ordered, default to three rows, and have no Dashboard API or saved-layout authority.
 
 ## Retained legacy composition
 
@@ -103,4 +111,4 @@ Styles enter through [app/styles/global.css](../../src/app/styles/global.css), i
 
 Unit tests are colocated with auth, HTTP, model and route modules. `tests/auth/` contains deterministic auth/session browser tests with storage sentinels and excluded-API assertions. `tests/real/` owns the disposable signed-token/PKCE provider and real backend/Vite/Nginx acceptance runner. Existing routing, CRUD, layout, failure and mobile tests run through the isolated legacy entry. See the [current commands and deployment inputs](../../README.md).
 
-The isolated prototype retains its stabilization backlog and example Operations data. Authenticated Project detail now includes Task editing under [PLAN-0008](../plans/PLAN-0008-task-integration.md). The [historical API proposal](../references/api/backend-api-contract.md) does not override the implemented backend contracts referenced by the integration Plans. Auth, User/PersonalWorkspace, Projects, Overview and Tasks are integrated; Journal, Milestone, Link and Dashboard APIs remain deferred. `tests/tasks/` covers API Task behavior, storage isolation and retained presentation; the legacy browser entry preserves existing prototype regressions.
+The isolated prototype retains its stabilization backlog and example Operations data. Authenticated Project detail now includes Task editing and a recent Journal view under [PLAN-0008](../plans/PLAN-0008-task-integration.md) and [PLAN-0009](../plans/PLAN-0009-journal-integration.md). The [historical API proposal](../references/api/backend-api-contract.md) does not override the implemented backend contracts referenced by the integration Plans. Auth, User/PersonalWorkspace, Projects, Overview, Tasks and Journals are integrated; Milestone, Link and Dashboard APIs remain deferred. `tests/tasks/` and `tests/journals/` cover API behavior, storage isolation and retained presentation; the legacy browser entry preserves existing prototype regressions.

@@ -1,5 +1,9 @@
 # Plan: Remaining frontend stabilization
 
+## Status
+
+`completed` — marked complete on 2026-09-13 under the user's explicit instruction. The historical scope and acceptance criteria below are retained for reference; PLAN-0009 did not reopen this work.
+
 ## Goal
 
 Preserve the remaining frontend backlog from the historical stabilization list. Execution is separate from the documentation and source reorganization approved on 2026-09-10.

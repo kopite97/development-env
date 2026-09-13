@@ -1,5 +1,6 @@
 import { validateProjects } from './projects.mjs';
 import { validateTasks } from './tasks.mjs';
+import { validateJournals } from './journals.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,9 +10,18 @@ import assert from 'node:assert/strict';
 import { startProvider } from './oidc-provider.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const backend = path.resolve(root, '../dev-back/devspace');
+const backendCandidates = [
+  process.env.BACKEND_ROOT,
+  path.resolve(root, '../backend'),
+  path.resolve(root, '../dev-back/devspace'),
+].filter(Boolean);
+const backend = backendCandidates.find((candidate) =>
+  fs.existsSync(path.join(candidate, 'gradlew.bat')),
+);
+if (!backend) throw new Error('No sibling backend checkout with gradlew.bat was found.');
 const phase = process.argv.find((arg) => arg.startsWith('--projects='))?.split('=')[1];
 const taskPhase = process.argv.find((arg) => arg.startsWith('--tasks='))?.split('=')[1];
+const journalPhase = process.argv.find((arg) => arg.startsWith('--journals='))?.split('=')[1];
 const nginx = process.argv.includes('--nginx');
 const origin = nginx ? 'http://127.0.0.1:4177' : 'http://127.0.0.1:4175';
 const output = path.join(root, '.auth-validation', nginx ? 'nginx' : 'vite');
@@ -21,7 +31,7 @@ const logs = [];
 let browser;
 let provider;
 let container;
-const runId = 'plan0006-' + Date.now();
+const runId = 'plan0009-' + Date.now();
 function launch(command, args, options, name) {
   const child = spawn(command, args, {
     windowsHide: true,
@@ -71,7 +81,7 @@ try {
     JAVA_HOME: 'C:\\Users\\nellu\\.jdks\\corretto-21.0.12.1',
     SPRING_PROFILES_ACTIVE: 'test',
     SERVER_PORT: '18080',
-    SPRING_CONFIG_IMPORT: 'optional:file:./plan0006-no-env.properties',
+    SPRING_CONFIG_IMPORT: 'optional:file:./plan0009-no-env.properties',
     APP_ORIGIN: origin,
     SESSION_COOKIE_SECURE: 'false',
     OIDC_GOOGLE_CLIENT_ID: 'test-google-client',
@@ -121,7 +131,7 @@ try {
     ]);
   assert.equal(sql('select count(*) from users'), '0');
   if (nginx) {
-    docker(['build', '-t', 'devspace-plan0006', '.']);
+    docker(['build', '-t', 'devspace-plan0009', '.']);
     container = runId;
     docker([
       'run',
@@ -133,7 +143,7 @@ try {
       '127.0.0.1:4177:10000',
       '-e',
       'BACKEND_UPSTREAM=http://host.docker.internal:18080',
-      'devspace-plan0006',
+      'devspace-plan0009',
     ]);
     fs.writeFileSync(
       path.join(output, 'nginx-config.txt'),
@@ -177,7 +187,9 @@ try {
     const url = new URL(request.url());
     if (
       url.pathname.startsWith('/api/') &&
-      !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|overview$)/.test(url.pathname)
+      !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|overview$)/.test(
+        url.pathname,
+      )
     )
       excluded.push(url.pathname);
   });
@@ -260,6 +272,8 @@ try {
   if (phase) await validateProjects({ page, context, origin, sql, alice, output, phase });
   if (taskPhase)
     await validateTasks({ page, context, origin, sql, alice, output, phase: taskPhase });
+  if (journalPhase)
+    await validateJournals({ page, context, origin, sql, alice, output, phase: journalPhase });
   const csrf = await context.request.get(origin + '/api/v1/auth/csrf');
   assert.equal(csrf.status(), 200);
   const token = (await csrf.json()).csrfToken;

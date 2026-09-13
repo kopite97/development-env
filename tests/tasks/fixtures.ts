@@ -35,6 +35,8 @@ export async function setup(page: Page) {
     if (url.pathname === '/api/v1/projects')
       return route.fulfill({ json: { items: [project(1)], total: 1, nextCursor: null } });
     if (url.pathname.startsWith('/api/v1/projects/')) return route.fulfill({ json: project(1) });
+    if (url.pathname === '/api/v1/journals')
+      return route.fulfill({ json: { items: [], total: 0, nextCursor: null } });
     const rows = state.tasks.filter(
       (t) =>
         (!p.get('scope') || p.get('scope') === 'all' || t.scope === p.get('scope')) &&
@@ -107,7 +109,9 @@ export const test = base.extend<{ isolation: void }>({
         const p = new URL(request.url()).pathname;
         if (
           p.startsWith('/api/') &&
-          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|overview$)/.test(p)
+          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|overview$)/.test(
+            p,
+          )
         )
           excluded.push(p);
       });

@@ -50,7 +50,9 @@ export const test = base.extend<{ isolation: void }>({
         const p = new URL(r.url()).pathname;
         if (
           p.startsWith('/api/') &&
-          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|overview$)/.test(p)
+          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|overview$)/.test(
+            p,
+          )
         )
           excluded.push(p);
       });
@@ -80,6 +82,9 @@ export const test = base.extend<{ isolation: void }>({
         route.fulfill({
           json: { counts: { todo: 0, doing: 0, done: 0 }, total: 0, asOf: '2026-09-13T00:00:00Z' },
         }),
+      );
+      await context.route('**/api/v1/journals?*', (route) =>
+        route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
       );
       await use();
       expect(excluded).toEqual([]);

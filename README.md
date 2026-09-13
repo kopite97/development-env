@@ -2,7 +2,7 @@
 
 Devspace is a React 19 and TypeScript workspace frontend. The default entry verifies a backend session through `/api/v1/me`, then displays the user's name and personal workspace. Google sign-in and CSRF-protected logout use the backend's existing session contract.
 
-Projects and Tasks use backend data and mutations. The Task page retains its existing board, editor, trash and responsive shell. Home shows Overview and a temporary Task-only board; Project detail includes related Tasks. Journal, Milestone, Link and Dashboard APIs remain deferred. Existing prototype records are preserved in browser storage and are never read, imported or cleared by the authenticated entry.
+Projects, Tasks and Journals use backend data and mutations. The Task page retains its existing board, editor, trash and responsive shell. Home shows Overview, a temporary Task-only board and a read-only newest Journal widget; Project detail includes related Tasks and recent Journals. Milestone, Link and Dashboard APIs remain deferred. Existing prototype records are preserved in browser storage and are never read, imported or cleared by the authenticated entry.
 
 ## Development
 
@@ -40,15 +40,19 @@ npm run test:e2e
 npx playwright test --config playwright.auth.config.ts
 npx playwright test --config playwright.projects.config.ts
 npx playwright test --config playwright.tasks.config.ts
+npm run dev -- --port 4180 --strictPort
+$env:JOURNAL_REUSE_SERVER='1'; npx playwright test --config playwright.journals.config.ts
 node tests/real/run.mjs
 node tests/real/run.mjs --nginx
 node tests/real/run.mjs --projects=final
 node tests/real/run.mjs --projects=final --nginx
 node tests/real/run.mjs --projects=final --tasks=final
 node tests/real/run.mjs --projects=final --tasks=final --nginx
+node tests/real/run.mjs --journals=final
+node tests/real/run.mjs --journals=final --nginx
 ```
 
-Install Chromium with `npx playwright install chromium` if needed. Existing prototype regressions run on a separate test-only Vite entry at port 4175; auth tests use port 4176 and Project/Overview tests use port 4178, with isolated contexts. There is no production demo selector. Real acceptance runs sequentially on ports 18080 (backend), 18999 (disposable local OIDC provider), and 4175 or 4177 (Vite/Nginx). It requires Docker, Java 21 at the existing local JDK path, and the sibling backend checkout at `../dev-back/devspace`. The runner reuses its unchanged `bootTestRun`/PostgreSQL Testcontainers setup, rejects occupied ports, and stops only its own processes. Provider keys/tokens are disposable and are not packaged in the frontend image. Safe local evidence is retained under ignored `.auth-validation/`.
+Install Chromium with `npx playwright install chromium` if needed. Existing prototype regressions run on a separate test-only Vite entry at port 4175; auth tests use port 4176, Project/Overview tests use port 4178, Task tests use port 4179 and Journal tests use port 4180, with isolated contexts. There is no production demo selector. Real acceptance runs sequentially on ports 18080 (backend), 18999 (disposable local OIDC provider), and 4175 or 4177 (Vite/Nginx). It requires Docker, Java 21 at the existing local JDK path, and a sibling backend checkout at `../backend` or the historical `../dev-back/devspace` path. The runner reuses its unchanged `bootTestRun`/PostgreSQL Testcontainers setup, rejects occupied ports, and stops only its own processes. Provider keys/tokens are disposable and are not packaged in the frontend image. Safe local evidence is retained under ignored `.auth-validation/`.
 
 ## Projects and counters
 
@@ -68,6 +72,12 @@ Task and Project UUIDs, revisions and audit metadata come from the server. Proje
 
 Task mutations invalidate Task lists/details/stats and Overview. Project changes also invalidate Task reads and Project options, including same-revision derived name/scope changes. Session checking hides private content; detached drafts survive only verified same-identity recovery. Task browser tests use port 4179. Legacy `devspace.tasks.v1` remains preserved and unused.
 
+## Journals
+
+Authenticated Journals use server DTOs and canonical Project UUIDs. The editable date is the date-only `entryDate`; `createdAt` and `updatedAt` remain audit timestamps. Requests preserve `YYYY-MM-DD` values and Journal bodies exactly, including whitespace and newlines. The Journal page delegates scope, Project, title/body/Project-name search, inclusive date bounds, newest/oldest ordering, totals and cursor pagination to the backend, and uses direct UUID reads for editor entry, conflict review and Project detail.
+
+Creation requires an active Project and keeps an in-memory Idempotency-Key/body intent for explicit same-key retries. PATCH sends the captured revision and dirty fields; permanent DELETE requires the revision and confirms `{deletedId}`. Conflicts, CSRF/network failures and failed reconciliation retain drafts or deletion context. Archived relations remain readable and editable for non-relation fields, while reassignment requires an active Project. Home and Project-detail recent Journal surfaces are read-only, newest ordered and limited to three by default without Dashboard API or saved-layout authority. Legacy `devspace.journals.v1` and fixtures remain preserved and unused by authenticated composition. Journal browser tests use port 4180.
+
 ## Structure and scope
 
 - [Frontend architecture](docs/architecture/frontend.md): auth composition, transport and retained legacy implementation.
@@ -75,6 +85,7 @@ Task mutations invalidate Task lists/details/stats and Overview. Project changes
 - [Plan index](docs/plans/README.md) and [PLAN-0006](docs/plans/PLAN-0006-frontend-auth-http-integration.md): execution and validation evidence.
 - [PLAN-0007](docs/plans/PLAN-0007-project-overview-integration.md): Project/Overview contract, execution and validation evidence.
 - [PLAN-0008](docs/plans/PLAN-0008-task-integration.md): Task integration, preserved UI and validation evidence.
-- [Stabilization backlog](docs/plans/PLAN-0003-frontend-stabilization.md): unrelated pending prototype work.
+- [PLAN-0009](docs/plans/PLAN-0009-journal-integration.md): Journal integration, preserved UI and final validation evidence.
+- [Stabilization plan](docs/plans/PLAN-0003-frontend-stabilization.md): historical prototype scope retained for reference.
 
 The retained prototype includes project/task/journal/link/milestone CRUD, dashboard widgets, local persistence and accessibility workflows. Its providers, fixtures and legacy navigation remain available only to their separate regression harness. The [historical API proposal](docs/references/api/backend-api-contract.md) does not override the implemented backend contract referenced by PLAN-0006.
