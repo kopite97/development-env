@@ -21,7 +21,6 @@ export function ServerTaskHome({
           id: 'server-task-board',
           type: 'board',
           title: '작업 보드',
-          scope: 'unity',
           size: 'wide',
         }}
         editing={false}
@@ -38,7 +37,7 @@ export function ServerTaskHome({
           store={store}
           options={options}
           memory={memory}
-          filter={{ scope: 'unity', query: '', projectStatus: 'all' }}
+          filter={{ category: 'all', query: '', projectStatus: 'all' }}
           limit={limit}
         />
       </WidgetFrame>

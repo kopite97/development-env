@@ -13,7 +13,7 @@ const dto = (overrides: Record<string, unknown> = {}) => ({
   title: 'Journal',
   projectId,
   projectName: 'Project',
-  scope: 'unity',
+  categoryId: null,
   body: 'body',
   entryDate: '2026-09-13',
   ...overrides,
@@ -34,7 +34,7 @@ function storeWith(fetcher: typeof fetch) {
 }
 
 const filter = {
-  scope: 'all' as const,
+  category: 'all' as const,
   projectStatus: 'all' as const,
   query: 'body term',
   projectId,
@@ -63,7 +63,7 @@ describe('Journal store', () => {
     const query = store.list(filter);
     await Promise.all([query.load(), query.load()]);
     const params = new URL('http://test' + requests[0]).searchParams;
-    expect(params.get('scope')).toBe('all');
+    expect(params.get('category')).toBe('all');
     expect(params.get('projectId')).toBe(projectId);
     expect(params.get('projectStatus')).toBe('all');
     expect(params.get('query')).toBe('body term');
@@ -88,7 +88,7 @@ describe('Journal store', () => {
         }),
     );
     const query = store.list({
-      scope: 'all',
+      category: 'all',
       projectStatus: 'all',
       query: '',
       sort: 'newest',
@@ -141,7 +141,7 @@ describe('Journal store', () => {
     store.detail(id).seed(parseJournal(dto()));
     const result = await store.mutate('delete', { id, revision: 1 });
     expect(result.deletedId).toBe(id);
-    expect(calls[0].path).toContain('/api/v1/journals/' + id + '?revision=1');
+    expect(calls[0].path).toContain('/api/v2/journals/' + id + '?revision=1');
     expect(calls[0].headers.get('X-CSRF-Token')).toBe('csrf-test');
     expect(store.entities.has(id)).toBe(false);
   });

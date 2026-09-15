@@ -8,10 +8,10 @@ test('create preserves body/date and freezes one Idempotency-Key', async ({ page
     entryDate: '2026-09-04',
   });
   const writes: { key: string | undefined; body: unknown }[] = [];
-  await page.route('**/api/v1/journals?*', (route) =>
+  await page.route('**/api/v2/journals?*', (route) =>
     route.fulfill({ json: { items: [saved], total: 1, nextCursor: null } }),
   );
-  await page.route('**/api/v1/journals', async (route) => {
+  await page.route('**/api/v2/journals', async (route) => {
     writes.push({
       key: route.request().headers()['idempotency-key'],
       body: route.request().postDataJSON(),
@@ -19,7 +19,7 @@ test('create preserves body/date and freezes one Idempotency-Key', async ({ page
     saved = { ...saved, revision: 2 };
     return route.fulfill({ status: 201, json: saved });
   });
-  await page.route('**/api/v1/journals/' + saved.id, (route) => route.fulfill({ json: saved }));
+  await page.route('**/api/v2/journals/' + saved.id, (route) => route.fulfill({ json: saved }));
   await page.goto('/journals');
   await page.getByRole('button', { name: '일지 작성', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -48,13 +48,13 @@ test('revision conflict keeps the draft, permits explicit reapplication, and del
   let current = journal(1);
   let patchCount = 0;
   let deleted = false;
-  await page.route('**/api/v1/journals?*', (route) =>
+  await page.route('**/api/v2/journals?*', (route) =>
     route.fulfill({
       json: { items: deleted ? [] : [current], total: deleted ? 0 : 1, nextCursor: null },
     }),
   );
   await page.route(
-    new RegExp('/api/v1/journals/' + current.id + '(?:\\?revision=\\d+)?$'),
+    new RegExp('/api/v2/journals/' + current.id + '(?:\\?revision=\\d+)?$'),
     async (route) => {
       if (route.request().method() === 'DELETE') {
         deleted = true;
@@ -99,7 +99,7 @@ test('archived Project relation is retained while active reassignment options st
   await setup(page);
   const archived = project(3, 'archived');
   const current = journal(1, { projectId: archived.id, projectName: archived.name });
-  await page.route('**/api/v1/projects?*', (route) => {
+  await page.route('**/api/v2/projects?*', (route) => {
     const params = new URL(route.request().url()).searchParams;
     return route.fulfill({
       json:
@@ -108,13 +108,13 @@ test('archived Project relation is retained while active reassignment options st
           : { items: [archived, project(1)], total: 2, nextCursor: null },
     });
   });
-  await page.route('**/api/v1/projects/' + archived.id, (route) =>
+  await page.route('**/api/v2/projects/' + archived.id, (route) =>
     route.fulfill({ json: archived }),
   );
-  await page.route('**/api/v1/journals?*', (route) =>
+  await page.route('**/api/v2/journals?*', (route) =>
     route.fulfill({ json: { items: [current], total: 1, nextCursor: null } }),
   );
-  await page.route('**/api/v1/journals/' + current.id, (route) => route.fulfill({ json: current }));
+  await page.route('**/api/v2/journals/' + current.id, (route) => route.fulfill({ json: current }));
   await page.goto('/journals');
   await page.locator('.feature-actions button').first().click();
   const dialog = page.getByRole('dialog');

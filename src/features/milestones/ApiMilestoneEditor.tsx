@@ -140,7 +140,11 @@ export function ApiMilestoneEditor({
       } else {
         const intent = editor.intent ?? createIntent(editor.draft);
         update({ ...editor, intent });
-        const result = await store.mutate('create', { body: retryBody(intent), key: intent.key });
+        const result = await store.mutate('create', {
+          body: retryBody(intent),
+          key: intent.key,
+          endpoint: intent.endpoint ?? '/api/v1/milestones',
+        });
         if (!current()) return;
         if ('reconciled' in result && result.reconciled) done();
         else {
@@ -157,6 +161,10 @@ export function ApiMilestoneEditor({
     } catch (error) {
       if (!current() || error instanceof CancelledError) return;
       const code = error instanceof HttpError ? error.code : '';
+      if (error instanceof HttpError && code === 'SESSION_UNVERIFIED') {
+        setNotice(error.message);
+        return;
+      }
       setNotice(
         code === 'REVISION_CONFLICT'
           ? '다른 곳에서 변경되었습니다. 최신 상태와 내 입력을 검토해 주세요.'

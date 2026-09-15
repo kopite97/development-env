@@ -7,7 +7,7 @@ import type { TaskProjectOption } from '../../features/tasks/presentation';
 export function taskProjectOptions(
   projects: ProjectStore,
 ): TaskProjectOptions & { invalidate: () => void; dispose: () => void } {
-  const filter = { scope: 'all', status: 'active', query: '' } as const;
+  const filter = { category: 'all', status: 'active', query: '' } as const;
   const source = projects.list(filter);
   const map = (p: { id: string; name: string; status: string }): TaskProjectOption => ({
     id: p.id,

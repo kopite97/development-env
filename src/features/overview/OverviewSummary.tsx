@@ -16,9 +16,9 @@ export function OverviewSummary({
       <h3>
         {filter.projectId
           ? 'Project counters'
-          : filter.scope === 'all'
+          : filter.category === 'all'
             ? 'Workspace counters'
-            : `${filter.scope === 'unity' ? 'Unity' : 'Server'} counters`}
+            : 'Category counters'}
       </h3>
       {state.status === 'loading' && (
         <p role="status">{state.data ? 'Refreshing counters…' : 'Loading counters…'}</p>
@@ -48,14 +48,7 @@ export function OverviewSummary({
               </div>
             ))}
           </dl>
-          {!filter.projectId && filter.scope === 'all' && (
-            <p>
-              Unity: {state.data.projects.byScope.unity.total} active /{' '}
-              {state.data.projects.byScope.unity.archived} archived · Server:{' '}
-              {state.data.projects.byScope.server.total} active /{' '}
-              {state.data.projects.byScope.server.archived} archived
-            </p>
-          )}
+
           <p>
             Task counts include non-deleted tasks in archived Projects. Independent of Project
             search and loaded pages.

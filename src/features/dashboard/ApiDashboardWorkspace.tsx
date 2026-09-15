@@ -6,10 +6,15 @@ import { useQuery } from '../../shared/http/query';
 import { CancelledError, HttpError } from '../../shared/http/client';
 import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import { confirmNavigation } from '../../shared/lib/navigationGuard';
-import { scopes, type Scope } from '../projects/scope';
+import {
+  selectionLabel,
+  type CategoryFilter,
+  type CategoryOption,
+} from '../projects/categoryFilter';
 import { WidgetFrame } from './WidgetFrame';
 import { ApiWidgetEditor } from './ApiWidgetEditor';
-import { moveWidget, type Widget } from './model';
+import { moveWidget } from './model';
+import type { Widget } from './apiModel';
 import { sameWidgets, saveBody, serverDefaultWidgets, type ApiDashboard } from './apiModel';
 import type { DashboardStore } from './apiStore';
 import type { DashboardEditorMemory, DashboardMemory } from './draftMemory';
@@ -19,6 +24,7 @@ export function ApiDashboardWorkspace({
   store,
   memory,
   options,
+  categories,
   scaffold,
   filter,
   query,
@@ -26,20 +32,30 @@ export function ApiDashboardWorkspace({
   onReset,
   renderWidget,
   onEditingChange,
+  displaySelection,
+  widgetHref,
+  onNavigate,
 }: {
   store: DashboardStore;
   memory: DashboardMemory;
   options: DashboardProjectOptions;
+  categories: readonly CategoryOption[];
   scaffold: Omit<PageScaffoldProps, 'children' | 'actions'>;
-  filter: Scope;
+  filter: CategoryFilter;
   query: string;
   onStartEditing: () => void;
   onReset: () => void;
   onEditingChange: (editing: boolean) => void;
   renderWidget: (widget: Widget) => ReactNode;
+  displaySelection?: (widget: Widget) => Widget['selection'];
+  widgetHref?: (widget: Widget) => string | undefined;
+  onNavigate?: (path: string) => void;
 }) {
   const state = useQuery(store.home);
-  const [editor, setEditor] = useState(memory.editor);
+  const [oldDraft, setOldDraft] = useState(() =>
+    memory.editor && memory.editor.baseline.schemaVersion !== 2 ? memory.editor : undefined,
+  );
+  const [editor, setEditor] = useState(oldDraft ? undefined : memory.editor);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(memory.editor?.notice ?? '');
   const [latest, setLatest] = useState<ApiDashboard>();
@@ -75,7 +91,7 @@ export function ApiDashboardWorkspace({
       !!editor.submitted ||
       !!editor.review ||
       !sameWidgets(editor.draft, editor.baseline.widgets));
-  const canDiscard = useUnsavedChanges(busy || dirty);
+  const canDiscard = useUnsavedChanges(busy || dirty || !!oldDraft);
   const start = () => {
     if (!state.data || state.status !== 'ready' || state.stale || !confirmNavigation())
       return false;
@@ -93,7 +109,7 @@ export function ApiDashboardWorkspace({
         id: crypto.randomUUID(),
         type: 'overview',
         title: '프로젝트 한눈에 보기',
-        scope: 'all',
+        selection: { kind: 'all' },
         size: 'medium',
       } satisfies Widget);
     update({
@@ -148,6 +164,11 @@ export function ApiDashboardWorkspace({
     } catch (error) {
       if (!current() || error instanceof CancelledError) return;
       const code = error instanceof HttpError ? error.code : '';
+      if (error instanceof HttpError && code === 'SESSION_UNVERIFIED') {
+        setNotice(error.message);
+        update({ ...memory.editor!, review: false, submitted: undefined });
+        return;
+      }
       setNotice(
         code === 'REVISION_CONFLICT'
           ? '다른 곳에서 배치가 변경되었습니다. 최신 배치와 내 초안을 검토해 주세요.'
@@ -199,12 +220,34 @@ export function ApiDashboardWorkspace({
         ?.focus(),
     );
   };
-  const shown = items.filter(
-    (w) =>
-      editing ||
-      ((filter === 'all' || w.scope === filter || w.scope === 'all') &&
-        `${w.title} ${scopes[w.scope]}`.toLowerCase().includes(query.toLowerCase())),
-  );
+  const shown = items.filter((w) => editing || w.title.toLowerCase().includes(query.toLowerCase()));
+  if (oldDraft)
+    return (
+      <PageScaffold {...scaffold}>
+        <div className="notice" role="alert">
+          <p>
+            이전 버전의 배치 초안은 자동 변환하거나 저장할 수 없습니다. 아래 제목을 확인한 후 최신
+            배치에서 다시 편집해 주세요.
+          </p>
+          <ul>
+            {oldDraft.draft.map((widget, index) => (
+              <li key={index}>{widget.title}</li>
+            ))}
+          </ul>
+          {oldDraft.widget && <p>{oldDraft.widget.form.title}</p>}
+          <Button
+            onClick={() => {
+              if (!canDiscard()) return;
+              memory.editor = undefined;
+              setOldDraft(undefined);
+              store.home.invalidate();
+            }}
+          >
+            이전 초안을 폐기하고 최신 배치 확인
+          </Button>
+        </div>
+      </PageScaffold>
+    );
   return (
     <div ref={root} className="dashboard-surface">
       <PageScaffold
@@ -270,8 +313,8 @@ export function ApiDashboardWorkspace({
             <ol>
               {editor.draft.map((w) => (
                 <li key={w.id}>
-                  {w.title} · {w.type} · {w.scope} · {w.size} · {w.projectId ?? '분야 범위'} ·{' '}
-                  {w.limit ?? '기본 개수'}
+                  {w.title} · {w.type} · {w.selection.kind} · {w.size} ·{' '}
+                  {selectionLabel(w.selection, categories)} · {w.limit ?? '기본 개수'}
                 </li>
               ))}
             </ol>
@@ -281,8 +324,8 @@ export function ApiDashboardWorkspace({
                 <ol>
                   {latest.widgets.map((w) => (
                     <li key={w.id}>
-                      {w.title} · {w.type} · {w.scope} · {w.size} · {w.projectId ?? '분야 범위'} ·{' '}
-                      {w.limit ?? '기본 개수'}
+                      {w.title} · {w.type} · {w.selection.kind} · {w.size} ·{' '}
+                      {selectionLabel(w.selection, categories)} · {w.limit ?? '기본 개수'}
                     </li>
                   ))}
                 </ol>
@@ -328,10 +371,16 @@ export function ApiDashboardWorkspace({
         >
           {shown.map((w) => {
             const index = items.findIndex((x) => x.id === w.id);
+            const href = widgetHref?.(w);
             return (
               <WidgetFrame
                 key={w.id}
                 widget={w}
+                titleLink={href && onNavigate ? { href, onNavigate } : undefined}
+                classification={selectionLabel(
+                  !editing && displaySelection ? displaySelection(w) : w.selection,
+                  categories,
+                )}
                 editing={editing}
                 index={index}
                 total={items.length}
@@ -364,10 +413,6 @@ export function ApiDashboardWorkspace({
             onReset={!editing && (query || filter !== 'all') ? onReset : undefined}
           >
             <p>검색 조건을 바꾸거나 홈에 필요한 위젯을 추가해 주세요.</p>
-            <Button disabled={busy || editor?.review} onClick={() => editWidget()}>
-              <Plus size={15} />
-              위젯 추가
-            </Button>
           </EmptyState>
         )}
         {(state.data || editing) && (
@@ -386,6 +431,7 @@ export function ApiDashboardWorkspace({
             key={editor.widget.form.id}
             memory={memory}
             options={options}
+            categories={categories}
             onClose={() => update({ ...memory.editor!, widget: undefined })}
             onSave={(w) => {
               const draft = items.some((x) => x.id === w.id)

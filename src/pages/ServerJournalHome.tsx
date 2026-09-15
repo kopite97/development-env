@@ -10,7 +10,6 @@ export function ServerJournalHome({ store, limit = 3 }: { store: JournalStore; l
           id: 'server-journal-recent',
           type: 'journal',
           title: '최근 개발 일지',
-          scope: 'all',
           size: 'medium',
         }}
         editing={false}

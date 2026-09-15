@@ -11,7 +11,7 @@ export function TaskBoard({
   columns,
   pending,
 }: {
-  scope: Scope;
+  scope?: Scope;
   tasks: Task[];
   onTaskChange: (id: string, status: Task['status']) => void;
   onEdit?: (task: Task) => void;
@@ -25,7 +25,7 @@ export function TaskBoard({
 }) {
   const [dragged, setDragged] = useState<string | null>(null);
   const [target, setTarget] = useState<Task['status'] | null>(null);
-  const filtered = tasks.filter((t) => scope === 'all' || t.scope === scope);
+  const filtered = scope && scope !== 'all' ? tasks.filter((t) => t.scope === scope) : tasks;
   return (
     <div className="kanban" tabIndex={0} role="region" aria-label="작업 보드 상태 열 (가로 스크롤)">
       {(['todo', 'doing', 'done'] as const).map((status, i) => (

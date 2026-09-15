@@ -1,4 +1,4 @@
-import { count, object, oneOf, string, timestamp, uuid } from '../../shared/http/validation';
+import { count, object, string, timestamp, uuid } from '../../shared/http/validation';
 
 export type ApiMilestone = {
   id: string;
@@ -8,7 +8,7 @@ export type ApiMilestone = {
   title: string;
   projectId: string;
   projectName: string;
-  scope: 'unity' | 'server';
+  categoryId: string | null;
   dueDate: string | null;
   completed: boolean;
 };
@@ -21,7 +21,7 @@ export type MilestoneDraft = {
 export type MilestoneProjectOption = {
   id: string;
   name: string;
-  scope: 'unity' | 'server';
+  categoryId: string | null;
   archived: boolean;
 };
 export type MilestonePage = { items: ApiMilestone[]; total: number; nextCursor: string | null };
@@ -65,7 +65,7 @@ export function parseMilestone(value: unknown): ApiMilestone {
     title,
     projectId: uuid(row.projectId),
     projectName: string(row.projectName),
-    scope: oneOf(row.scope, ['unity', 'server']),
+    categoryId: row.categoryId === null ? null : uuid(row.categoryId),
     dueDate: row.dueDate === null ? null : milestoneDate(row.dueDate),
     completed: row.completed,
   };

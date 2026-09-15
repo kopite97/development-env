@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   createBody,
   parseProject,
+  parseHistoricalCreatedProject,
   parseProjectPage,
   patchBody,
   presentation,
+  projectPresentation,
   projectDraft,
   validateDraft,
 } from './apiModel';
@@ -15,22 +17,49 @@ const dto = {
   updatedAt: '2026-09-13T01:00:00Z',
   name: 'Project',
   subtitle: '',
-  scope: 'unity',
   stack: 'C#',
   progress: 12.345,
   currentMilestone: 'memo',
   repositoryUrl: '',
   status: 'archived',
-  colorToken: 'unity',
+  categoryId: null,
 };
 describe('server Project boundary', () => {
+  it('requires normal categoryId, isolates legacy replay omission and serializes nullable relation independently', () => {
+    const { categoryId: _category, ...legacy } = dto;
+    expect(() => parseProject(legacy)).toThrow();
+    expect(parseHistoricalCreatedProject(legacy)).not.toHaveProperty('categoryId');
+    const project = parseProject(dto),
+      draft = projectDraft(project);
+    const selected = parseProject({ ...dto, categoryId: dto.id }).categoryId;
+    expect(patchBody(project, { ...draft, categoryId: selected })).toEqual({
+      revision: 4,
+      categoryId: dto.id,
+    });
+    expect(patchBody(parseProject({ ...dto, categoryId: dto.id }), draft)).toEqual({
+      revision: 4,
+      categoryId: null,
+    });
+    expect(draft).not.toHaveProperty('scope');
+  });
   it('retains server metadata and maps presentation without fixture IDs', () => {
     const project = parseProject(dto);
-    expect(presentation(project)).toEqual({ milestone: 'memo', archived: true, color: 'forest' });
+    expect(presentation(project)).toEqual({ milestone: 'memo', archived: true, color: 'neutral' });
+    expect(projectPresentation(project)).toEqual({
+      id: dto.id,
+      name: dto.name,
+      subtitle: '',
+      stack: 'C#',
+      progress: 12.345,
+      milestone: 'memo',
+      repositoryUrl: '',
+      archived: true,
+      color: 'neutral',
+    });
     expect(createBody(projectDraft(project))).toEqual({
+      categoryId: null,
       name: 'Project',
       subtitle: '',
-      scope: 'unity',
       stack: 'C#',
       progress: 12.345,
       currentMilestone: 'memo',

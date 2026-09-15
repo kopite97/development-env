@@ -4,9 +4,9 @@ import { DashboardStore } from './apiStore';
 import { serverDefaultWidgets, saveBody } from './apiModel';
 const dto = (revision = 0, widgets = serverDefaultWidgets()) => ({
   id: 'home',
-  schemaVersion: 1,
+  schemaVersion: 2,
   revision,
-  widgets,
+  widgets: widgets.map((widget) => ({ ...widget, selectionState: 'valid' })),
 });
 function make(fetcher: typeof fetch) {
   const lifecycle = new Lifecycle();
@@ -30,7 +30,7 @@ describe('Dashboard server authority', () => {
     await store.home.load();
     expect(calls).toHaveLength(2);
     await store.save(saveBody(0, serverDefaultWidgets()));
-    expect(calls.map((c) => c.path)).toEqual(Array(3).fill('/api/v1/dashboards/home'));
+    expect(calls.map((c) => c.path)).toEqual(Array(3).fill('/api/v2/dashboards/home'));
     expect(JSON.parse(String(calls[2].options?.body))).toEqual(saveBody(0, serverDefaultWidgets()));
     expect(new Headers(calls[2].options?.headers).get('Idempotency-Key')).toBeNull();
     expect(store.home.getSnapshot().data?.revision).toBe(1);

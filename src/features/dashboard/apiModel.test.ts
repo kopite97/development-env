@@ -1,27 +1,37 @@
 import { describe, it, expect } from 'vitest';
 import { parseDashboard, parseWidgets, saveBody, serverDefaultWidgets } from './apiModel';
-const widget = () => ({ id: 'a', type: 'overview', title: '제목', scope: 'all', size: 'small' });
+const widget = () => ({
+  id: 'a',
+  type: 'overview',
+  title: '제목',
+  selection: { kind: 'all' },
+  size: 'small',
+});
 describe('Dashboard contract boundary', () => {
   it('accepts virtual and saved empty dashboards without replacing them', () => {
     for (const revision of [0, 2, Number.MAX_SAFE_INTEGER])
       expect(
-        parseDashboard({ id: 'home', schemaVersion: 1, revision, widgets: [] }).widgets,
+        parseDashboard({ id: 'home', schemaVersion: 2, revision, widgets: [] }).widgets,
       ).toEqual([]);
   });
-  it('normalizes Java trim, canonical UUID and project scope without inventing a limit', () => {
+  it('normalizes Java trim, canonical UUID and Project selection without inventing a limit', () => {
     const widgets = parseWidgets([
       {
         ...widget(),
         id: ' a ',
         title: ' 제목 ',
-        scope: 'unity',
-        projectId: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA',
+        selection: { kind: 'project', projectId: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA' },
       },
     ]);
     expect(saveBody(0, widgets)).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       revision: 0,
-      widgets: [{ ...widget(), projectId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }],
+      widgets: [
+        {
+          ...widget(),
+          selection: { kind: 'project', projectId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' },
+        },
+      ],
     });
   });
   it('keeps repeated types and has no invented count or ID length cap', () => {
@@ -32,10 +42,10 @@ describe('Dashboard contract boundary', () => {
     ).toHaveLength(101);
   });
   it('enforces supported schema, exact fields, safe revisions, optional omission and discriminants', () => {
-    const base = { id: 'home', schemaVersion: 1, revision: 0, widgets: [widget()] };
+    const base = { id: 'home', schemaVersion: 2, revision: 0, widgets: [widget()] };
     for (const patch of [
       { id: 'other' },
-      { schemaVersion: 2 },
+      { schemaVersion: 1 },
       { revision: -1 },
       { revision: 1.5 },
       { revision: Number.MAX_SAFE_INTEGER + 1 },
@@ -67,13 +77,13 @@ describe('Dashboard contract boundary', () => {
       }),
     ).toThrow();
   });
-  it('owns one reset template with the exact schema-1 fields and fresh draft copies', () => {
+  it('owns one reset template with the exact schema-2 fields and fresh draft copies', () => {
     expect(
       serverDefaultWidgets().map((w) => [
         w.id,
         w.type,
         w.title,
-        w.scope,
+        w.selection.kind,
         w.size,
         Object.keys(w).length,
       ]),

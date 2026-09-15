@@ -27,6 +27,14 @@ At most one plan may be `active` at a time.
 | 10    | completed | [Milestone integration](PLAN-0010-milestone-integration.md)                                       | Completed 2026-09-13; 134 unit, 117 browser and 183 backend tests; real Vite/Nginx and Milestone visual parity passed.                          |
 | 11    | completed | [Link integration](PLAN-0011-link-integration.md)                                                 | Completed 2026-09-14; 145 unit, 132 browser and 183 backend tests; real Vite/Nginx, Link order/conflicts and visual parity passed.              |
 | 12    | completed | [Home Dashboard integration](PLAN-0012-dashboard-integration.md)                                  | Completed 2026-09-14; 156 unit, 150 browser, 183 backend; final Vite/fresh Nginx and matched Home/editor visual geometry passed.                |
+| 13    | completed | [ProjectCategory integration](PLAN-0013-project-category-integration.md)                          | Completed 2026-09-14; 166 unit / 186 browser tests, real Vite/Nginx and responsive parity passed; scope and legacy isolation preserved.         |
+| 14    | completed | [ProjectCategory-only transition](PLAN-0014-project-category-only-transition.md)                  | Completed 2026-09-15; 206 unit / 215 browser tests, real Vite/Nginx and 9 backend migration/replay tests passed.                                |
+| 15 | completed | [Graphite workspace theme](PLAN-0015-graphite-workspace-theme.md) | User visual acceptance/completion confirmed; tests/build omitted by request. |
+| 16 | rejected | [Split login workflow](PLAN-0016-login-workflow-split.md) | Superseded by approved PLAN-0017; split implementation retained, remaining validation carried forward. |
+| 17 | completed | [Technical Blueprint theme](PLAN-0017-technical-blueprint-theme.md) | Explicitly marked complete by user during PLAN-0018 execution; prior validation limitations retained. |
+| 18 | completed | [Warm Porcelain surfaces](PLAN-0018-warm-porcelain-surfaces.md) | Completed per explicit user closeout request on 2026-09-15; palette/surface/icon transition applied. Public login checked; authenticated visual review and tests/build remain unrun and are recorded as limitations. |
+| 19 | completed | [Project Detail workbench density](PLAN-0019-project-detail-workbench-density.md) | Completed per explicit user closeout request; detail CSS/metadata implemented. Authenticated visual verification limitations retained; tests/build omitted. |
+| 20 | completed | [Task, Journal and Library UI stabilization](PLAN-0020-feature-pages-ui-stabilization.md) | Completed per explicit user closeout request; page CSS/classes implemented. Authenticated visual verification limitations retained; tests/build omitted. |
 
 Both plans were registered as proposed on 2026-09-10. The user explicitly requested creating and immediately executing these plans in that session; this is authorization for their sequential activation.
 
@@ -47,6 +55,10 @@ PLAN-0010 was registered as `proposed` on 2026-09-13 for Plan creation only. Liv
 PLAN-0011 was registered as `proposed` on 2026-09-14 for Plan creation only. Live generated OpenAPI and current backend source were verified. Explicitly approved and activated on 2026-09-14 with all candidates; all six sessions completed with final validation and recovery evidence recorded in the Plan. Existing Link ordering/UI and legacy storage are preserved; no backend or Dashboard API changes. Other completed Plan statuses remain unchanged.
 
 PLAN-0012 was registered as `proposed` on 2026-09-14 for Plan creation only. Live generated Dashboard OpenAPI and current backend source were verified. Explicitly approved and activated on 2026-09-14 with all compatibility candidates; all six sessions completed with final validation and recovery evidence in the Plan. Home now uses Dashboard authority while preserving its UI and legacy storage. Existing completed statuses remain unchanged.
+
+PLAN-0013 was registered as `proposed`, explicitly approved with all candidates, activated and completed on 2026-09-14. All six sessions completed against the running backend contract; final validation, recovery and pre-existing global formatting baseline evidence is recorded in the Plan. Category filtering and Dashboard Category configuration remain deferred. All other Plan statuses remain unchanged.
+
+PLAN-0014 was registered as `proposed`, explicitly approved with its UI candidates, activated and completed on 2026-09-15. All seven sessions completed against the verified v2 contract, including real Category login restoration, freshness/replay checks and responsive parity. Final evidence and the existing global formatting baseline are recorded in the Plan. The scope-preservation/deferred-filtering direction of PLAN-0013 is historical, not the target of PLAN-0014. Other Plan statuses remain unchanged.
 
 ## Rules
 

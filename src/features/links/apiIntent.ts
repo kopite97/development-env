@@ -1,11 +1,13 @@
 import { createBody, type LinkDraft } from './apiModel';
 export type LinkIntent = {
+  readonly endpoint?: '/api/v1/links' | '/api/v2/links';
   readonly key: string;
   readonly body: Readonly<LinkDraft>;
   readonly startedAt: number;
 };
 export function createIntent(draft: LinkDraft, now = Date.now()): LinkIntent {
   return Object.freeze({
+    endpoint: '/api/v2/links',
     key: crypto.randomUUID(),
     body: Object.freeze(createBody(draft)),
     startedAt: now,

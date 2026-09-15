@@ -18,7 +18,7 @@ const response = {
   title: 'Task',
   projectId: '20000000-0000-0000-0000-000000000001',
   projectName: 'Project',
-  scope: 'unity',
+  categoryId: null,
   description: '',
   status: 'todo',
   priority: 'normal',
@@ -40,7 +40,7 @@ describe('Task API boundary', () => {
       { priority: '보통' },
       { status: 'all' },
       { deletedAt: 'yesterday' },
-      { scope: 'all' },
+      { categoryId: 'all' },
     ])
       expect(() => parseTask({ ...response, ...change })).toThrow();
   });

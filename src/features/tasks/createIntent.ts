@@ -3,6 +3,7 @@ import type { TaskDraft } from './presentation';
 import type { TaskIntent } from './draftMemory';
 export function createIntent(draft: TaskDraft, now = Date.now()): TaskIntent {
   return Object.freeze({
+    endpoint: '/api/v2/tasks',
     key: crypto.randomUUID(),
     body: Object.freeze(createBody(draft)),
     startedAt: now,

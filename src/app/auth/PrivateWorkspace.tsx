@@ -5,16 +5,16 @@ import { ServerDashboardHome } from '../../pages/ServerDashboardHome';
 import { LinkStore } from '../../features/links/apiStore';
 import type { LinkMemory } from '../../features/links/draftMemory';
 import { ServerLinksPage } from '../../pages/ServerLinksPage';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ProjectStore } from '../../features/projects/apiStore';
+import { CategoryStore } from '../../features/projects/categoryStore';
 import type { PrivateTransport } from '../../shared/http/transport';
-import { ServerProjectsPage } from '../../pages/ServerProjectsPage';
-import './projects.css';
+import { ServerProjectsPage, ProjectTaskHeading } from '../../pages/ServerProjectsPage';
 import type { DraftMemory } from '../../features/projects/draftMemory';
 import { OverviewStore } from '../../features/overview/apiStore';
 import { TaskStore } from '../../features/tasks/apiStore';
 import { ServerTasksPage } from '../../pages/ServerTasksPage';
-import { TaskShell } from './TaskShell';
+import { AuthenticatedLayout } from './AuthenticatedLayout';
 import { taskProjectOptions } from './taskProjectOptions';
 import type { TaskMemory } from '../../features/tasks/draftMemory';
 import { ApiTaskManager } from '../../features/tasks/ApiTaskManager';
@@ -22,17 +22,23 @@ import { JournalStore } from '../../features/journal/apiStore';
 import type { JournalMemory } from '../../features/journal/draftMemory';
 import { journalProjectOptions } from './journalProjectOptions';
 import { ServerJournalsPage } from '../../pages/ServerJournalsPage';
-import { ApiRecentJournals } from '../../features/journal/ApiRecentJournals';
+import { ApiProjectJournals } from '../../features/journal/ApiProjectJournals';
 import { MilestoneStore } from '../../features/milestones/apiStore';
 import { ApiMilestoneList } from '../../features/milestones/ApiMilestoneList';
 import type { MilestoneMemory } from '../../features/milestones/draftMemory';
 import { milestoneProjectOptions } from './milestoneProjectOptions';
+import { readCategoryFilter, readProjectFilter } from '../../features/projects/categoryFilter';
+import { useQuery } from '../../shared/http/query';
+import { freshTransport } from '../../shared/http/freshTransport';
 export function PrivateWorkspace({
-  transport,
+  transport: sessionTransport,
   url,
   onNavigate,
   memory,
-  avatar = '',
+  displayName,
+  workspaceName,
+  sessionControls,
+  sessionNotice,
   taskMemory,
   journalMemory,
   milestoneMemory,
@@ -41,18 +47,36 @@ export function PrivateWorkspace({
 }: {
   transport: PrivateTransport;
   url: URL;
-  onNavigate: (path: string, replace?: boolean) => void;
+  onNavigate: (path: string, replace?: boolean) => boolean;
   memory: DraftMemory;
-  avatar?: string;
+  displayName: string;
+  workspaceName: string;
+  sessionControls: ReactNode;
+  sessionNotice?: ReactNode;
   taskMemory: TaskMemory;
   journalMemory: JournalMemory;
   milestoneMemory: MilestoneMemory;
   linkMemory: LinkMemory;
   dashboardMemory: HomeMemory;
 }) {
+  const [transport] = useState(() =>
+    freshTransport(sessionTransport, (paths) => {
+      if (
+        paths.some(
+          (path) => path.startsWith('/api/v2/projects') && !path.includes('/category-counts'),
+        )
+      ) {
+        options.invalidate();
+        dashboardOptions.invalidate();
+        journalOptions.invalidate();
+        milestoneOptions.invalidate();
+      }
+    }),
+  );
   const [dashboard] = useState(() => new DashboardStore(transport));
   const [links] = useState(() => new LinkStore(transport));
   const [projects] = useState(() => new ProjectStore(transport));
+  const [categories] = useState(() => new CategoryStore(transport));
   const [overview] = useState(() => new OverviewStore(transport));
   const [tasks] = useState(() => new TaskStore(transport));
   const [journals] = useState(() => new JournalStore(transport));
@@ -61,7 +85,12 @@ export function PrivateWorkspace({
   const [options] = useState(() => taskProjectOptions(projects));
   const [journalOptions] = useState(() => journalProjectOptions(projects));
   const [dashboardOptions] = useState(() => dashboardProjectOptions(projects));
+  const categoryState = useQuery(categories.list);
   tasks.onInvalidate = () => overview.invalidate();
+  categories.onChanged = (kind) => {
+    if (kind !== 'rename') projects.counts.invalidate();
+    if (kind === 'delete') dashboard.invalidate();
+  };
   dashboard.onSaved = () => {
     overview.invalidate();
     tasks.invalidate();
@@ -70,6 +99,7 @@ export function PrivateWorkspace({
     links.invalidate();
   };
   projects.onInvalidate = () => {
+    links.invalidate();
     overview.invalidate();
     dashboard.invalidate();
     dashboardOptions.invalidate();
@@ -91,6 +121,7 @@ export function PrivateWorkspace({
           dashboardOptions.dispose();
           links.dispose();
           projects.dispose();
+          categories.dispose();
           overview.dispose();
           tasks.dispose();
           options.dispose();
@@ -106,6 +137,7 @@ export function PrivateWorkspace({
     dashboardOptions,
     links,
     projects,
+    categories,
     overview,
     tasks,
     options,
@@ -114,107 +146,105 @@ export function PrivateWorkspace({
     milestones,
     milestoneOptions,
   ]);
-  if (url.pathname === '/library')
-    return (
-      <TaskShell
-        page="자료실"
-        url={url}
-        onNavigate={onNavigate}
-        overview={overview}
-        avatar={avatar}
-      >
+  const pathname = url.pathname.replace(/\/+$/, '') || '/';
+  const renderPage = () => {
+    if (pathname === '/library')
+      return (
         <div className="link-surface">
           <ServerLinksPage
+            categories={categoryState.data?.items ?? []}
+            options={dashboardOptions}
             store={links}
             overview={overview}
             memory={linkMemory}
             url={url}
-            onFilterNavigate={(path) => onNavigate(path, true)}
+            onFilterNavigate={(path) => onNavigate(path)}
           />
         </div>
-      </TaskShell>
-    );
-  if (url.pathname === '/tasks')
-    return (
-      <TaskShell url={url} onNavigate={onNavigate} overview={overview} avatar={avatar}>
+      );
+    if (pathname === '/tasks')
+      return (
         <ServerTasksPage
+          categories={categoryState.data?.items ?? []}
           store={tasks}
           overview={overview}
           options={options}
           memory={taskMemory}
           url={url}
-          onFilterNavigate={(path) => onNavigate(path, true)}
+          onFilterNavigate={(path) => onNavigate(path)}
         />
-      </TaskShell>
-    );
-  if (/^\/projects(?:\/[^/]+)?\/?$/.test(url.pathname))
-    return (
-      <ServerProjectsPage
-        key={url.pathname + url.search}
-        store={projects}
-        overview={overview}
-        url={url}
-        onNavigate={onNavigate}
-        memory={memory}
-        renderTasks={(id) => (
-          <section className="task-surface content-panel">
-            <h2>태스크</h2>
-            <ApiTaskManager
-              store={tasks}
-              options={options}
-              memory={taskMemory}
-              filter={{ scope: 'all', projectId: id, query: '', projectStatus: 'all' }}
+      );
+    if (/^\/projects(?:\/[^/]+)?$/.test(pathname))
+      return (
+        <ServerProjectsPage
+          categories={categories}
+          key={url.pathname + url.search}
+          store={projects}
+          overview={overview}
+          url={url}
+          onNavigate={onNavigate}
+          memory={memory}
+          renderTasks={(id) => (
+            <section className="task-surface content-panel" aria-label="프로젝트 작업">
+              <ProjectTaskHeading overview={overview} projectId={id} />
+              <ApiTaskManager
+                store={tasks}
+                options={options}
+                memory={taskMemory}
+                filter={{ category: 'all', projectId: id, query: '', projectStatus: 'all' }}
+              />
+            </section>
+          )}
+          renderJournals={(project) => (
+            <ApiProjectJournals
+              store={journals}
+              options={journalOptions}
+              memory={journalMemory}
+              project={{
+                id: project.id,
+                name: project.name,
+                categoryId: project.categoryId,
+                archived: project.status === 'archived',
+              }}
             />
-          </section>
-        )}
-        renderJournals={(id) => (
-          <section className="journal-surface content-panel">
-            <h2>개발 일지</h2>
-            <ApiRecentJournals store={journals} projectId={id} limit={3} />
-          </section>
-        )}
-        renderMilestones={(id) => (
-          <section className="content-panel milestone-surface" aria-label="프로젝트 마일스톤">
-            <div className="panel-heading">
-              <h2>마일스톤</h2>
-              <p>목표와 기한을 관리하세요.</p>
-            </div>
-            <ApiMilestoneList
-              store={milestones}
-              options={milestoneOptions}
-              memory={milestoneMemory}
-              projectId={id}
-              onNavigate={onNavigate}
-            />
-          </section>
-        )}
-      />
-    );
-  if (url.pathname === '/journals')
-    return (
-      <ServerJournalsPage
-        store={journals}
-        options={journalOptions}
-        memory={journalMemory}
-        url={url}
-        onFilterNavigate={(path) => onNavigate(path, true)}
-      />
-    );
-  if (url.pathname === '/')
-    return (
-      <TaskShell
-        page="나의 홈"
-        url={url}
-        onNavigate={onNavigate}
-        overview={overview}
-        avatar={avatar}
-      >
+          )}
+          renderMilestones={(id) => (
+            <section className="content-panel milestone-surface" aria-label="프로젝트 마일스톤">
+              <div className="panel-heading">
+                <h2 data-section-index="02 / MILESTONES">마일스톤</h2>
+                <p>목표와 기한을 관리하세요.</p>
+              </div>
+              <ApiMilestoneList
+                store={milestones}
+                options={milestoneOptions}
+                memory={milestoneMemory}
+                projectId={id}
+                onNavigate={onNavigate}
+              />
+            </section>
+          )}
+        />
+      );
+    if (pathname === '/journals')
+      return (
+        <ServerJournalsPage
+          categories={categoryState.data?.items ?? []}
+          store={journals}
+          options={journalOptions}
+          memory={journalMemory}
+          url={url}
+          onFilterNavigate={(path) => onNavigate(path)}
+        />
+      );
+    if (pathname === '/')
+      return (
         <ServerDashboardHome
+          categories={categoryState.data?.items ?? []}
           store={dashboard}
           options={dashboardOptions}
           memory={dashboardMemory}
           taskMemories={dashboardMemory.tasks}
-          onFilterNavigate={(path) => onNavigate(path, true)}
+          onFilterNavigate={(path) => onNavigate(path)}
           projects={projects}
           overview={overview}
           tasks={tasks}
@@ -226,19 +256,49 @@ export function PrivateWorkspace({
           url={url}
           onNavigate={onNavigate}
         />
-      </TaskShell>
+      );
+    return (
+      <div className="empty-state">
+        <h3>Page not found</h3>
+      </div>
     );
+  };
   return (
-    <div className="auth-pending">
-      <h3>
-        {['/', '/tasks', '/journals', '/library'].includes(url.pathname)
-          ? 'Feature integration pending'
-          : 'Page not found'}
-      </h3>
-      <p>
-        Your session is ready. This page will become available when its backend integration is
-        complete.
-      </p>
-    </div>
+    <AuthenticatedLayout
+      url={url}
+      onNavigate={onNavigate}
+      projects={projects}
+      categories={categories}
+      displayName={displayName}
+      workspaceName={workspaceName}
+      sessionControls={sessionControls}
+      sessionNotice={sessionNotice}
+    >
+      {(() => {
+        try {
+          readCategoryFilter(url.searchParams);
+          if (pathname !== '/') readProjectFilter(url.searchParams);
+        } catch (error) {
+          return (
+            <div className="notice" role="alert">
+              <p>{error instanceof Error ? error.message : '개발 분야를 확인해 주세요.'}</p>
+              <button
+                className="button"
+                onClick={() => {
+                  const params = new URLSearchParams(url.search);
+                  params.delete('scope');
+                  params.delete('projectId');
+                  params.set('category', 'all');
+                  onNavigate(url.pathname + '?' + params);
+                }}
+              >
+                전체 프로젝트 보기
+              </button>
+            </div>
+          );
+        }
+        return renderPage();
+      })()}
+    </AuthenticatedLayout>
   );
 }

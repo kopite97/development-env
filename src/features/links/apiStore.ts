@@ -1,7 +1,8 @@
 import { CancelledError, HttpError } from '../../shared/http/client';
 import { Query } from '../../shared/http/query';
 import type { PrivateTransport } from '../../shared/http/transport';
-import { oneOf, uuid } from '../../shared/http/validation';
+import { oneOf, object, uuid } from '../../shared/http/validation';
+import { parseCategoryFilter, type CategoryFilter } from '../projects/categoryFilter';
 import {
   parseCollection,
   parseDeletion,
@@ -12,8 +13,13 @@ import {
   type LinkCollection,
 } from './apiModel';
 
-export type LinkFilter = { scope: 'all' | 'unity' | 'server'; query: string };
-export const fullLinks: LinkFilter = { scope: 'all', query: '' };
+export type LinkFilter = {
+  category: CategoryFilter;
+  query: string;
+  projectId?: string;
+  projectStatus?: 'all' | 'active' | 'archived';
+};
+export const fullLinks: LinkFilter = { category: 'all', query: '' };
 export class LinkStore {
   private lists = new Map<string, Query<LinkCollection>>();
   private details = new Map<string, Query<ApiLink>>();
@@ -36,15 +42,20 @@ export class LinkStore {
     }
   }
   list(filter: LinkFilter) {
-    oneOf(filter.scope, ['all', 'unity', 'server']);
-    const params = new URLSearchParams({ scope: filter.scope, query: filter.query });
+    const params = new URLSearchParams({
+      category: parseCategoryFilter(filter.category),
+      query: filter.query,
+    });
+    if (filter.projectId) params.set('projectId', uuid(filter.projectId));
+    if (filter.projectStatus)
+      params.set('projectStatus', oneOf(filter.projectStatus, ['all', 'active', 'archived']));
     const key = params.toString();
     this.prune(this.lists);
     let q = this.lists.get(key);
     if (!q) {
       q = new Query<LinkCollection>(async (signal) => {
         const epoch = this.epoch;
-        const data = await this.transport.request('/api/v1/links?' + key, {
+        const data = await this.transport.request('/api/v2/links?' + key, {
           signal,
           generation: this.transport.generation,
           expectedStatus: 200,
@@ -67,7 +78,7 @@ export class LinkStore {
     if (!q) {
       q = new Query<ApiLink>(async (signal) => {
         const epoch = this.epoch;
-        const data = await this.transport.request('/api/v1/links/' + id, {
+        const data = await this.transport.request('/api/v2/links/' + id, {
           signal,
           generation: this.transport.generation,
           expectedStatus: 200,
@@ -96,6 +107,7 @@ export class LinkStore {
   async mutate(
     operation: 'create' | 'patch' | 'delete' | 'order',
     options: {
+      endpoint?: '/api/v1/links' | '/api/v2/links';
       id?: string;
       revision?: number;
       body?: unknown;
@@ -134,7 +146,7 @@ export class LinkStore {
     };
     try {
       if (operation === 'order') {
-        const data = await this.transport.request('/api/v1/links/order', {
+        const data = await this.transport.request('/api/v2/links/order', {
           ...common,
           method: 'PUT',
           json: { collectionRevision: options.collection!.collectionRevision, ids: options.ids },
@@ -155,7 +167,7 @@ export class LinkStore {
       }
       if (operation === 'delete') {
         const data = await this.transport.request(
-          '/api/v1/links/' + options.id + '?revision=' + options.revision,
+          '/api/v2/links/' + options.id + '?revision=' + options.revision,
           { ...common, method: 'DELETE', parse: parseDeletion },
         );
         this.assert();
@@ -165,8 +177,26 @@ export class LinkStore {
         this.invalidate(data.deletedId);
         return { reconciled: true };
       }
+      if (operation === 'create' && options.endpoint === '/api/v1/links') {
+        const legacy = await this.transport.request('/api/v1/links', {
+          method: 'POST',
+          json: options.body,
+          headers: { 'Idempotency-Key': options.key ?? '' },
+          generation: this.transport.generation,
+          signal: this.lifetime.signal,
+          expectedStatus: 201,
+          parse: (value) => ({ id: uuid(object(object(value).item).id) }),
+        });
+        this.transport.lifecycle.assert(this.transport.generation);
+        this.invalidate();
+        const detail = this.detail(legacy.id);
+        await detail.load();
+        this.transport.lifecycle.assert(this.transport.generation);
+        const state = detail.getSnapshot();
+        return { confirmedId: legacy.id, reconciled: state.status === 'ready' };
+      }
       const data = await this.transport.request(
-        '/api/v1/links' + (options.id ? '/' + options.id : ''),
+        '/api/v2/links' + (options.id ? '/' + options.id : ''),
         {
           ...common,
           expectedStatus: operation === 'create' ? 201 : 200,

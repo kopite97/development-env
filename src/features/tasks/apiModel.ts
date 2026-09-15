@@ -10,7 +10,7 @@ export type ApiTask = {
   title: string;
   projectId: string;
   projectName: string;
-  scope: 'unity' | 'server';
+  categoryId: string | null;
   description: string;
   status: TaskStatus;
   priority: 'normal' | 'high';
@@ -29,7 +29,7 @@ export function parseTask(value: unknown): ApiTask {
     title: string(row.title),
     projectId: uuid(row.projectId),
     projectName: string(row.projectName),
-    scope: oneOf(row.scope, ['unity', 'server']),
+    categoryId: row.categoryId === null ? null : uuid(row.categoryId),
     description: string(row.description),
     status: oneOf(row.status, ['todo', 'doing', 'done']),
     priority: oneOf(row.priority, ['normal', 'high']),
@@ -52,7 +52,7 @@ export function taskPresentation(task: ApiTask): TaskPresentation {
     ...taskDraft(task),
     id: task.id,
     project: task.projectName,
-    scope: task.scope,
+    categoryId: task.categoryId,
     deletedAt: task.deletedAt,
   };
 }

@@ -247,9 +247,9 @@ export async function validateTasks({ page, context, origin, sql, alice, output,
     const currentProject = await (
       await context.request.get(origin + '/api/v1/projects/' + project.id)
     ).json();
-    await page.getByRole('button', { name: 'Edit Project', exact: true }).click();
-    await page.getByLabel('Name', { exact: true }).fill('Task renamed project');
-    await page.getByRole('button', { name: 'Save Project', exact: true }).click();
+    await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
+    await page.getByLabel('프로젝트 이름', { exact: true }).fill('Task renamed project');
+    await page.getByRole('button', { name: '프로젝트 저장', exact: true }).click();
     await expect(page.locator('.task small').first()).toHaveText('Task renamed project');
     assert(currentProject.revision >= 1);
     await page.goto(origin + '/');

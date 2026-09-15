@@ -1,8 +1,9 @@
+import { selectionFilter } from '../features/projects/categoryFilter';
 import { ProjectOverview } from '../features/projects/ProjectOverview';
 import { presentation, serverProjectId, type ApiProject } from '../features/projects/apiModel';
 import type { ProjectStore } from '../features/projects/apiStore';
 import type { OverviewStore } from '../features/overview/apiStore';
-import type { Widget } from '../features/dashboard/model';
+import type { Widget } from '../features/dashboard/apiModel';
 import { useQuery, type QueryState } from '../shared/http/query';
 import { Button } from '../shared/ui/controls';
 
@@ -29,13 +30,13 @@ function Rows({
   retry: () => void;
   more?: () => void;
 }) {
-  const query = overview.query({ scope: widget.scope, projectId: widget.projectId });
+  const query = overview.query(selectionFilter(widget.selection));
   const counters = useQuery(query);
-  const archived = !!widget.projectId && rows[0]?.status === 'archived';
+  const archived = !!selectionFilter(widget.selection).projectId && rows[0]?.status === 'archived';
   return (
     <>
       <ProjectOverview
-        scope={widget.scope}
+        filteredResults={{ total: rows.length }}
         projects={rows.map((p) => ({ ...p, ...presentation(p) }))}
         counts={{
           projects: archived ? counters.data?.projects.archived : counters.data?.projects.total,
@@ -43,7 +44,7 @@ function Rows({
           done: counters.data?.tasks.done,
         }}
         archived={archived}
-        projectOnly={!!widget.projectId}
+        projectOnly={!!selectionFilter(widget.selection).projectId}
         limit={widget.limit}
         hideEmpty={state.status !== 'ready'}
         onOpen={(id) => onNavigate('/projects/' + id)}
@@ -71,7 +72,11 @@ function Rows({
   );
 }
 function Collection(props: Props) {
-  const filter = { scope: props.widget.scope, status: 'active', query: '' } as const;
+  const filter = {
+    category: selectionFilter(props.widget.selection).category,
+    status: 'active',
+    query: '',
+  } as const;
   const query = props.projects.list(filter);
   const state = useQuery(query);
   return (
@@ -89,7 +94,9 @@ function Collection(props: Props) {
   );
 }
 function Selected(props: Props) {
-  const query = props.projects.detail(serverProjectId(props.widget.projectId));
+  const query = props.projects.detail(
+    serverProjectId(selectionFilter(props.widget.selection).projectId),
+  );
   const state = useQuery(query);
   return (
     <Rows
@@ -101,5 +108,9 @@ function Selected(props: Props) {
   );
 }
 export function ServerProjectOverview(props: Props) {
-  return props.widget.projectId ? <Selected {...props} /> : <Collection {...props} />;
+  return selectionFilter(props.widget.selection).projectId ? (
+    <Selected {...props} />
+  ) : (
+    <Collection {...props} />
+  );
 }

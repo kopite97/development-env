@@ -19,7 +19,9 @@ const link = (n: number, extra: Record<string, unknown> = {}) => ({
       'https://docs.spring.io',
       'https://react.dev',
     ][n - 1] ?? 'https://example.com/' + n,
-  scope: n === 1 ? 'all' : n === 2 ? 'unity' : 'server',
+  projectId: n === 3 || n === 4 ? id(2) : null,
+  projectName: n === 3 || n === 4 ? 'Project 2' : null,
+  categoryId: n === 3 || n === 4 ? id(900) : null,
   ...extra,
 });
 async function backend(page: Page) {
@@ -32,7 +34,7 @@ async function backend(page: Page) {
     conflict: false,
   };
   const replay = new Map<string, unknown>();
-  await page.route('**/api/v1/links**', async (route) => {
+  await page.route('**/api/v2/links**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     const method = req.method();
@@ -57,14 +59,20 @@ async function backend(page: Page) {
       collectionRevision: state.revision,
     });
     if (method === 'GET') {
-      if (url.pathname === '/api/v1/links') {
-        const scope = url.searchParams.get('scope');
+      if (url.pathname === '/api/v2/links') {
+        const category = url.searchParams.get('category');
         const query = url.searchParams.get('query')?.toLowerCase() ?? '';
         await route.fulfill({
           json: wrap(
             state.rows.filter(
               (l) =>
-                (scope === 'all' || l.scope === 'all' || l.scope === scope) &&
+                (!category ||
+                  category === 'all' ||
+                  (category === 'uncategorized'
+                    ? l.categoryId === null
+                    : l.categoryId === category)) &&
+                (!url.searchParams.has('projectId') ||
+                  l.projectId === url.searchParams.get('projectId')) &&
                 [l.label, l.description, l.url].some((x) => x.toLowerCase().includes(query)),
             ),
           ),
@@ -156,13 +164,13 @@ test('preserved library creates edits reorders filters and permanently deletes',
     revision: 2,
     label: '수정 링크',
   });
-  await page.locator('.tabs').getByRole('button', { name: 'Unity 개발', exact: true }).click();
+  await page.getByLabel('개발 분야 필터', { exact: true }).selectOption('uncategorized');
   await expect(page.getByRole('button', { name: 'GitHub 아래로' })).toBeDisabled();
   await expect(page.getByRole('link', { name: 'Spring Documentation' })).toHaveCount(0);
   await page.getByLabel('현재 화면 검색').fill('https://example.com');
   await expect(page.locator('.quick-links strong')).toHaveText(['수정 링크']);
   await page.getByLabel('현재 화면 검색').fill('');
-  await page.locator('.tabs').getByRole('button', { name: '전체 프로젝트' }).click();
+  await page.getByLabel('개발 분야 필터', { exact: true }).selectOption('all');
   page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: '수정 링크 삭제', exact: true }).click();
   await expect(page.getByRole('link', { name: '수정 링크' })).toHaveCount(0);
@@ -265,6 +273,22 @@ test('desktop mobile landscape visual and keyboard parity', async ({ page }) => 
     await page.setViewportSize({ width, height });
     await page.goto('/library');
     await expect(page.locator('.quick-links strong')).toHaveCount(4);
+    const header = page.locator('.library-header');
+    const add = page.getByRole('button', { name: '링크 추가', exact: true });
+    await expect(add).toHaveCount(1);
+    await expect(header.getByRole('button', { name: '링크 추가' })).toBeVisible();
+    await expect(add).toHaveClass(/button-primary/);
+    await expect(
+      page.locator('.library-toolbar').getByRole('button', { name: '링크 새로고침' }),
+    ).toHaveClass(/button-secondary/);
+    const headingBox = (await header.locator('h2').boundingBox())!;
+    const actionBox = (await add.boundingBox())!;
+    const toolbarBox = (await page.locator('.library-toolbar').boundingBox())!;
+    const listBox = (await page.locator('.quick-links').boundingBox())!;
+    expect(headingBox.x).toBeCloseTo(toolbarBox.x + 20, 0);
+    expect(headingBox.x).toBeCloseTo(listBox.x + 20, 0);
+    if (width === 390) expect(actionBox.y).toBeGreaterThan(headingBox.y + headingBox.height);
+    else expect(actionBox.x).toBeGreaterThan(headingBox.x + headingBox.width);
     await page.screenshot({
       path: '.auth-validation/link-api-library-' + name + '.png',
       fullPage: true,
@@ -286,4 +310,25 @@ test('desktop mobile landscape visual and keyboard parity', async ({ page }) => 
       .locator('.link-surface')
       .screenshot({ path: '.auth-validation/link-api-home-' + name + '.png' });
   }
+});
+
+test('empty Library keeps one header create action and toolbar reset', async ({ page }) => {
+  const server = await backend(page);
+  server.rows = [];
+  await page.goto('/library');
+  await expect(page.getByText('등록된 링크가 없어요')).toBeVisible();
+  await expect(page.getByRole('button', { name: '링크 추가', exact: true })).toHaveCount(1);
+  await expect(page.locator('.empty-state button')).toHaveCount(0);
+  await page.getByLabel('현재 화면 검색').fill('missing');
+  await expect(page.getByText('검색 조건에 맞는 링크가 없어요')).toBeVisible();
+  await page.locator('.library-toolbar').getByRole('button', { name: '검색·필터 초기화' }).click();
+  await expect(page.getByLabel('현재 화면 검색')).toHaveValue('');
+  await expect(page.getByText('등록된 링크가 없어요')).toBeVisible();
+  await page.locator('.library-header').getByRole('button', { name: '링크 추가' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByLabel('링크 이름')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(
+    page.locator('.library-header').getByRole('button', { name: '링크 추가' }),
+  ).toBeFocused();
 });

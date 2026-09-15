@@ -23,9 +23,18 @@ export function safeReturnTo(candidate: string): string {
     )
       return '/';
     const query = new URLSearchParams();
-    for (const key of ['scope', 'q', 'archived']) {
-      const value = url.searchParams.get(key);
-      if (value !== null) query.set(key, value);
+    for (const key of [
+      'scope',
+      'category',
+      'projectId',
+      'q',
+      'archived',
+      'projectStatus',
+      'from',
+      'to',
+      'sort',
+    ]) {
+      for (const value of url.searchParams.getAll(key)) query.append(key, value);
     }
     return url.pathname + (query.size ? '?' + query : '');
   } catch {

@@ -5,16 +5,25 @@
   margin-top: 22px;
 }
 .content-panel {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-none);
   padding: 24px;
+}
+.content-panel:has(.kanban) {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-none);
+  padding: 20px 0 0;
 }
 .panel-heading {
   padding: 0 20px 15px;
 }
 .panel-heading h2 {
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 600;
 }
 .panel-heading p {
   font-size: 12px;
@@ -26,4 +35,34 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 0 16px 14px;
+}
+.feature-actions .button-secondary:hover:not(:disabled) > svg {
+  color: var(--accent);
+}
+
+.section-toolbar.classification-toolbar.workbench-filter-toolbar {
+  grid-template-columns: repeat(2, minmax(0, 220px)) minmax(160px, 1fr);
+  gap: 12px 16px;
+  margin-bottom: 20px;
+}
+.workbench-filter-toolbar.classification-toolbar > .search {
+  align-self: start;
+  justify-self: stretch;
+  min-width: 0;
+  margin-left: 0;
+}
+@media (max-width: 900px) {
+  .section-toolbar.classification-toolbar.workbench-filter-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workbench-filter-toolbar.classification-toolbar > .search {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
+}
+@media (max-width: 480px) {
+  .section-toolbar.classification-toolbar.workbench-filter-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
 }

@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { createHttpClient, Lifecycle } from '../../shared/http/client';
-import { ProjectStore } from './apiStore';
+import { ProjectStore, ProjectCreatedError } from './apiStore';
 import { parseProject, serverProjectId } from './apiModel';
 const id = '00000000-0000-0000-0000-000000000001';
 const dto = {
@@ -10,14 +10,60 @@ const dto = {
   updatedAt: '2026-09-13T00:00:00Z',
   name: 'Server',
   subtitle: '',
-  scope: 'server',
   stack: 'Java',
   progress: 0,
   currentMilestone: '',
   repositoryUrl: '',
   status: 'active',
-  colorToken: 'server',
+  categoryId: null,
 };
+it('reconciles legacy POST responses and exposes confirmed identity when current read fails', async () => {
+  const { categoryId: _category, ...legacy } = dto;
+  const lifecycle = new Lifecycle();
+  let fail = false;
+  const store = new ProjectStore({
+    lifecycle,
+    generation: 0,
+    recoverSecurity: async () => {},
+    request: createHttpClient({
+      lifecycle,
+      fetch: async (_url, init) =>
+        init?.method === 'POST'
+          ? Response.json(legacy, { status: 201 })
+          : fail
+            ? Response.json({}, { status: 500 })
+            : Response.json({ ...dto, categoryId: id, revision: 2 }),
+    }),
+  });
+  expect(await store.mutate(undefined, {}, 'key', '/api/v1/projects')).toMatchObject({
+    categoryId: id,
+    revision: 2,
+  });
+  fail = true;
+  await expect(store.mutate(undefined, {}, 'key', '/api/v1/projects')).rejects.toBeInstanceOf(
+    ProjectCreatedError,
+  );
+});
+it('invalidates Project-dependent data after category-only patches', async () => {
+  const lifecycle = new Lifecycle();
+  const store = new ProjectStore({
+    lifecycle,
+    generation: 0,
+    recoverSecurity: async () => {},
+    request: createHttpClient({
+      lifecycle,
+      fetch: async () => Response.json({ ...dto, revision: 2 }),
+    }),
+  });
+  let invalidations = 0;
+  store.onInvalidate = () => {
+    invalidations++;
+  };
+  await store.mutate(serverProjectId(id), { revision: 1, categoryId: null });
+  expect(invalidations).toBe(1);
+  await store.mutate(serverProjectId(id), { revision: 2, name: 'Renamed' });
+  expect(invalidations).toBe(2);
+});
 it('deduplicates cursor rows, keeps higher revisions and stops only on null cursor', async () => {
   let calls = 0;
   const lifecycle = new Lifecycle();
@@ -35,7 +81,7 @@ it('deduplicates cursor rows, keeps higher revisions and stops only on null curs
         }),
     }),
   });
-  const filter = { scope: 'all', status: 'active', query: '' } as const;
+  const filter = { category: 'all', status: 'active', query: '' } as const;
   const query = store.list(filter);
   await Promise.all([query.load(), query.load()]);
   expect(calls).toBe(1);

@@ -16,13 +16,18 @@
   overscroll-behavior-x: contain;
   grid-template-columns: repeat(3, minmax(240px, 1fr));
   gap: 10px;
-  padding: 0 17px 18px;
+  padding: 0 4px 18px;
 }
 .kanban-column {
-  background: #f7f8fa;
-  border-radius: 8px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 10px 8px;
   min-width: 0;
+}
+.kanban-column:not(:has(.task)):not(.drop-target) {
+  background: color-mix(in srgb, var(--surface-subtle) 35%, var(--bg));
+  border-color: color-mix(in srgb, var(--border) 65%, var(--bg));
 }
 .column-heading {
   display: flex;
@@ -31,33 +36,37 @@
   font-size: 12px;
   margin-bottom: 11px;
   color: var(--muted);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
 .status-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: #afb6c2;
+  border-radius: var(--radius-round);
+  background: var(--muted);
 }
 .column-doing .status-dot {
-  background: #a19acb;
+  background: var(--accent);
 }
 .column-done .status-dot {
-  background: #8eb3a1;
+  background: var(--success);
 }
 .count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: var(--muted);
-  background: #ebedf1;
-  border-radius: 4px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-badge);
   padding: 2px 5px;
 }
 .task {
-  background: white;
-  border: 1px solid #e9ecf1;
-  border-radius: 7px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 11px 10px;
   margin-top: 8px;
-  box-shadow: 0 2px 3px #29385102;
+  box-shadow: var(--shadow);
 }
 .task > small {
   font-size: 12px;
@@ -153,4 +162,27 @@
 .task-title:hover {
   color: var(--accent);
   text-decoration: underline;
+}
+
+.project-detail > section.task-surface > div > .feature-actions {
+  padding: 0 0 12px;
+}
+.project-detail > section.task-surface .kanban {
+  padding: 4px 4px 8px;
+}
+
+.content-panel.task-page-content,
+.content-panel.task-page-content:has(.kanban) {
+  padding: 18px 0 0;
+}
+.task-page-content > div > .feature-actions {
+  padding: 0 0 12px;
+}
+.task-page-content .kanban {
+  padding: 4px 4px 8px;
+}
+.task-page-content > div > .notice {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  overflow-wrap: anywhere;
 }

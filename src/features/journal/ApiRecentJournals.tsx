@@ -1,5 +1,6 @@
+import type { CategoryFilter } from '../projects/categoryFilter';
 import { ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button, EmptyState, Modal } from '../../shared/ui/controls';
 import { useQuery } from '../../shared/http/query';
 import type { ApiJournal } from './apiModel';
@@ -8,19 +9,21 @@ import type { JournalStore } from './apiStore';
 
 export function ApiRecentJournals({
   store,
-  scope = 'all',
+  category = 'all',
   projectId,
   limit = 3,
+  emptyAction,
 }: {
   store: JournalStore;
-  scope?: 'all' | 'unity' | 'server';
+  category?: CategoryFilter;
   projectId?: string;
   limit?: number;
+  emptyAction?: ReactNode;
 }) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 20)
     throw new Error('Journal widget limit must be 1–20');
   const filter = {
-    scope,
+    category,
     projectId,
     projectStatus: 'all' as const,
     query: '',
@@ -47,12 +50,16 @@ export function ApiRecentJournals({
             Retry
           </Button>
         </p>
-        <EmptyState title={projectId ? 'No Journals for this Project' : 'No recent Journals'} />
+        <EmptyState title={projectId ? 'No Journals for this Project' : 'No recent Journals'}>
+          {emptyAction}
+        </EmptyState>
       </>
     );
   if (!state.data?.items.length)
     return (
-      <EmptyState title={projectId ? '이 프로젝트의 개발일지가 없어요' : '개발일지가 없어요'} />
+      <EmptyState title={projectId ? '이 프로젝트의 개발일지가 없어요' : '개발일지가 없어요'}>
+        {emptyAction}
+      </EmptyState>
     );
   return (
     <>

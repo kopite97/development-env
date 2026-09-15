@@ -1,6 +1,10 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { CancelledError } from './client';
 
+type QueryObserver = { invalidate: () => void };
+const observers = new WeakMap<AbortSignal, QueryObserver>();
+export const queryObserver = (signal?: AbortSignal) => (signal ? observers.get(signal) : undefined);
+
 export type QueryState<T> = {
   status: 'idle' | 'loading' | 'ready' | 'error';
   data?: T;
@@ -47,6 +51,7 @@ export class Query<T> {
     if (this.work) return this.work;
     const sequence = ++this.sequence;
     const controller = new AbortController();
+    observers.set(controller.signal, this);
     this.controller = controller;
     this.publish({ ...this.state, status: 'loading', error: undefined });
     const work = Promise.resolve()

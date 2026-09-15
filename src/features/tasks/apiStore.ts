@@ -1,7 +1,8 @@
+import { parseCategoryFilter, type CategoryFilter } from '../projects/categoryFilter';
 import { CancelledError, HttpError } from '../../shared/http/client';
 import { Query } from '../../shared/http/query';
 import type { PrivateTransport } from '../../shared/http/transport';
-import { uuid } from '../../shared/http/validation';
+import { object, uuid } from '../../shared/http/validation';
 import {
   parseTask,
   parseTaskPage,
@@ -13,7 +14,7 @@ import {
 import type { TaskStatus } from './presentation';
 
 export type TaskFilter = {
-  scope: 'all' | 'unity' | 'server';
+  category: CategoryFilter;
   projectId?: string;
   projectStatus: 'all' | 'active' | 'archived';
   query: string;
@@ -22,7 +23,7 @@ export type TaskListFilter = TaskFilter & { status?: TaskStatus; deleted: boolea
 export type TaskList = TaskPage & { cursors: string[] };
 export function taskParams(filter: TaskFilter | TaskListFilter) {
   const params = new URLSearchParams({
-    scope: filter.scope,
+    category: parseCategoryFilter(filter.category),
     projectStatus: filter.projectStatus,
     query: filter.query,
   });
@@ -75,7 +76,7 @@ export class TaskStore {
     this.transport.lifecycle.assert(this.transport.generation);
     if (this.disposed || signal.aborted || epoch !== this.epoch) throw new CancelledError();
   }
-  /** Equal revisions may contain newer derived Project names/scope. */
+  /** Equal revisions may contain newer derived Project names/categoryId. */
   adopt(task: ApiTask, order: number) {
     const previous = this.entities.get(task.id);
     if (
@@ -97,7 +98,7 @@ export class TaskStore {
       order = ++this.readSequence;
     const params = taskParams(filter);
     if (cursor) params.set('cursor', cursor);
-    const page = await this.transport.request('/api/v1/tasks?' + params, {
+    const page = await this.transport.request('/api/v2/tasks?' + params, {
       signal,
       generation: this.transport.generation,
       expectedStatus: 200,
@@ -145,7 +146,7 @@ export class TaskStore {
       query = new Query<ApiTask>(async (signal) => {
         const epoch = this.epoch,
           order = ++this.readSequence;
-        const task = await this.transport.request('/api/v1/tasks/' + id, {
+        const task = await this.transport.request('/api/v2/tasks/' + id, {
           signal,
           generation: this.transport.generation,
           expectedStatus: 200,
@@ -163,7 +164,7 @@ export class TaskStore {
     this.prune();
     // Deliberately serialize only stats-supported parameters, even if passed a list filter.
     const captured = {
-      scope: filter.scope,
+      category: parseCategoryFilter(filter.category),
       projectId: filter.projectId,
       projectStatus: filter.projectStatus,
       query: filter.query,
@@ -173,7 +174,7 @@ export class TaskStore {
     if (!query) {
       query = new Query<TaskStats>(async (signal) => {
         const epoch = this.epoch;
-        const result = await this.transport.request('/api/v1/tasks/stats?' + key, {
+        const result = await this.transport.request('/api/v2/tasks/stats?' + key, {
           signal,
           generation: this.transport.generation,
           expectedStatus: 200,
@@ -195,14 +196,38 @@ export class TaskStore {
   }
   async mutate(
     operation: 'create' | 'patch' | 'delete' | 'restore',
-    options: { id?: string; body?: unknown; revision?: number; key?: string },
+    options: {
+      endpoint?: '/api/v1/tasks' | '/api/v2/tasks';
+      id?: string;
+      body?: unknown;
+      revision?: number;
+      key?: string;
+    },
   ) {
     const target = options.id ?? 'create';
     if (this.pending.has(target)) throw new Error('Task operation already pending');
     if (operation !== 'create') uuid(options.id);
     this.pending.add(target);
     try {
-      let path = '/api/v1/tasks' + (options.id ? '/' + options.id : '');
+      if (operation === 'create' && options.endpoint === '/api/v1/tasks') {
+        const legacy = await this.transport.request('/api/v1/tasks', {
+          method: 'POST',
+          json: options.body,
+          headers: { 'Idempotency-Key': options.key ?? '' },
+          generation: this.transport.generation,
+          signal: this.lifetime.signal,
+          expectedStatus: 201,
+          parse: (value) => ({ id: uuid(object(value).id) }),
+        });
+        this.transport.lifecycle.assert(this.transport.generation);
+        this.invalidate();
+        const detail = this.detail(legacy.id);
+        await detail.load();
+        this.transport.lifecycle.assert(this.transport.generation);
+        const state = detail.getSnapshot();
+        return { task: state.data, confirmedId: legacy.id, reconciled: state.status === 'ready' };
+      }
+      let path = '/api/v2/tasks' + (options.id ? '/' + options.id : '');
       if (operation === 'delete') path += '?revision=' + options.revision;
       if (operation === 'restore') path += '/restore';
       const task = await this.transport.request(path, {

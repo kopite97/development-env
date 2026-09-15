@@ -11,11 +11,13 @@ export function projectHandoff(session: AuthSession) {
       const next = state.identity.id + ':' + state.identity.workspace.id;
       if (identity !== next) {
         memory.editor = undefined;
+        memory.category = undefined;
         memory = {};
       }
       identity = next;
     } else if (busy || state.kind === 'unauthenticated' || state.kind === 'disabled') {
       memory.editor = undefined;
+      memory.category = undefined;
       memory = {};
       identity = undefined;
     } else if (memory.editor) {

@@ -1,12 +1,14 @@
 import { count, object, oneOf, string, timestamp, uuid } from '../../shared/http/validation';
+import type { ProjectPresentation } from './presentation';
+import { categoryId, type CategoryId } from './categoryModel';
 
 export type ServerProjectId = string & { readonly serverProjectId: unique symbol };
 export type ProjectScope = 'unity' | 'server';
 export type ProjectStatus = 'active' | 'archived';
 export type ProjectDraft = {
+  categoryId: CategoryId | null;
   name: string;
   subtitle: string;
-  scope: ProjectScope;
   stack: string;
   progress: number;
   milestone: string;
@@ -19,7 +21,6 @@ export type ApiProject = Omit<ProjectDraft, 'milestone'> & {
   updatedAt: string;
   currentMilestone: string;
   status: ProjectStatus;
-  colorToken: string;
 };
 export const serverProjectId = (value: unknown) => uuid(value) as ServerProjectId;
 export function parseProject(value: unknown): ApiProject {
@@ -33,45 +34,50 @@ export function parseProject(value: unknown): ApiProject {
     row.progress > 100
   )
     throw new Error('Invalid Project');
-  const colorToken = string(row.colorToken);
-  if (!colorToken) throw new Error('Missing color token');
   return {
+    categoryId: row.categoryId === null ? null : categoryId(row.categoryId),
     id: serverProjectId(row.id),
     revision,
     createdAt: timestamp(row.createdAt),
     updatedAt: timestamp(row.updatedAt),
     name: string(row.name),
     subtitle: string(row.subtitle),
-    scope: oneOf(row.scope, ['unity', 'server']),
     stack: string(row.stack),
     progress: row.progress,
     currentMilestone: string(row.currentMilestone),
     repositoryUrl: string(row.repositoryUrl),
     status: oneOf(row.status, ['active', 'archived']),
-    colorToken,
   };
 }
 export const presentation = (project: ApiProject) => ({
   milestone: project.currentMilestone,
   archived: project.status === 'archived',
-  color:
-    project.colorToken === 'unity' ? 'forest' : project.colorToken === 'server' ? 'api' : 'neutral',
+  color: 'neutral',
 });
+export function projectPresentation(project: ApiProject): ProjectPresentation {
+  const { categoryId: _categoryId, ...draft } = projectDraft(project);
+  return { id: project.id, ...draft, ...presentation(project) };
+}
+export function parseHistoricalCreatedProject(value: unknown) {
+  const row = object(value);
+  return { id: serverProjectId(row.id) };
+}
+export const parseCreatedProject = parseProject;
 export function projectDraft(project?: ApiProject): ProjectDraft {
   return project
     ? {
+        categoryId: project.categoryId,
         name: project.name,
         subtitle: project.subtitle,
-        scope: project.scope,
         stack: project.stack,
         progress: project.progress,
         milestone: project.currentMilestone,
         repositoryUrl: project.repositoryUrl,
       }
     : {
+        categoryId: null,
         name: '',
         subtitle: '',
-        scope: 'unity',
         stack: '',
         progress: 0,
         milestone: '',
@@ -105,9 +111,9 @@ export function validateDraft(draft: ProjectDraft): Record<string, string> {
 export function createBody(draft: ProjectDraft) {
   if (Object.keys(validateDraft(draft)).length) throw new Error('Invalid draft');
   return {
+    categoryId: draft.categoryId,
     name: draft.name,
     subtitle: draft.subtitle,
-    scope: draft.scope,
     stack: draft.stack,
     progress: draft.progress,
     currentMilestone: draft.milestone,
@@ -117,7 +123,7 @@ export function createBody(draft: ProjectDraft) {
 export function patchBody(baseline: ApiProject, draft: ProjectDraft) {
   const before = createBody(projectDraft(baseline));
   const after = createBody(draft);
-  const changes: Record<string, string | number> = { revision: baseline.revision };
+  const changes: Record<string, string | number | null> = { revision: baseline.revision };
   for (const key of Object.keys(after) as (keyof typeof after)[])
     if (after[key] !== before[key]) changes[key] = after[key];
   return changes;

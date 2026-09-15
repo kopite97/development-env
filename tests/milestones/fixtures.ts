@@ -1,4 +1,4 @@
-import { defaultLayout as savedHomeFixture } from '../../src/features/dashboard/model';
+import { savedHomeFixture } from '../api-fixtures';
 import { test as base, expect, type Page } from '@playwright/test';
 
 export const id = (n: number) => '00000000-0000-0000-0000-' + String(n).padStart(12, '0');
@@ -9,13 +9,13 @@ export const project = (n: number, status: 'active' | 'archived' = 'active') => 
   updatedAt: '2026-09-13T00:00:00Z',
   name: 'Project ' + n,
   subtitle: '',
-  scope: n % 2 ? 'unity' : 'server',
+
   stack: n % 2 ? 'C#' : 'Java',
   progress: 0,
   currentMilestone: '',
   repositoryUrl: '',
   status,
-  colorToken: n % 2 ? 'unity' : 'server',
+  categoryId: null,
 });
 export const journal = (n: number, overrides: Record<string, unknown> = {}) => ({
   id: id(200 + n),
@@ -25,7 +25,7 @@ export const journal = (n: number, overrides: Record<string, unknown> = {}) => (
   title: 'Journal ' + n,
   projectId: id(1),
   projectName: 'Project 1',
-  scope: 'unity',
+  categoryId: null,
   body: 'Body ' + n,
   entryDate: '2026-09-' + String(10 + n).padStart(2, '0'),
   ...overrides,
@@ -38,43 +38,54 @@ export const identity = {
 
 export async function setup(page: Page) {
   await page.route('**/api/v1/me', (route) => route.fulfill({ json: identity }));
+  await page.route('**/api/v1/project-categories', (route) =>
+    route.fulfill({ json: { items: [], total: 0 } }),
+  );
   await page.route('**/api/v1/auth/csrf', (route) =>
     route.fulfill({ json: { csrfToken: 'test-token' } }),
   );
-  await page.route('**/api/v1/overview?*', (route) =>
+  await page.route('**/api/v2/overview?*', (route) =>
     route.fulfill({
       json: {
-        scope: 'all',
+        category: 'all',
         projectId: null,
         projects: {
           total: 2,
           archived: 1,
-          byScope: { unity: { total: 1, archived: 1 }, server: { total: 1, archived: 0 } },
+          byCategory: [{ categoryId: null, total: 2, archived: 1 }],
         },
         tasks: { todo: 0, doing: 0, done: 0, total: 0 },
         asOf: '2026-09-13T00:00:00Z',
       },
     }),
   );
-  await page.route('**/api/v1/projects?*', (route) =>
+  await page.route('**/api/v2/projects?*', (route) =>
     route.fulfill({ json: { items: [project(1), project(2)], total: 2, nextCursor: null } }),
   );
-  await page.route('**/api/v1/projects/*', (route) => route.fulfill({ json: project(1) }));
-  await page.route('**/api/v1/tasks?*', (route) =>
+  await page.route('**/api/v2/projects/*', (route) => route.fulfill({ json: project(1) }));
+  await page.route('**/api/v2/projects/category-counts', (route) =>
+    route.fulfill({
+      json: {
+        items: [{ categoryId: null, active: 2, archived: 0 }],
+        totals: { active: 2, archived: 0 },
+      },
+    }),
+  );
+  await page.route('**/api/v2/tasks?*', (route) =>
     route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
   );
-  await page.route('**/api/v1/tasks/stats?*', (route) =>
+  await page.route('**/api/v2/tasks/stats?*', (route) =>
     route.fulfill({
       json: { counts: { todo: 0, doing: 0, done: 0 }, total: 0, asOf: '2026-09-13T00:00:00Z' },
     }),
   );
-  await page.route('**/api/v1/links?*', (route) =>
+  await page.route('**/api/v2/links?*', (route) =>
     route.fulfill({ json: { items: [], total: 0, nextCursor: null, collectionRevision: 0 } }),
   );
-  await page.route('**/api/v1/milestones?*', (route) =>
+  await page.route('**/api/v2/milestones?*', (route) =>
     route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
   );
-  await page.route('**/api/v1/journals?*', (route) =>
+  await page.route('**/api/v2/journals?*', (route) =>
     route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
   );
 }
@@ -101,7 +112,7 @@ export const test = base.extend<{ isolation: void }>({
         const pathname = new URL(request.url()).pathname;
         if (
           pathname.startsWith('/api/') &&
-          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$)/.test(
+          !/^\/api\/(?:v1\/(?:me$|auth\/|project-categories(?:\/|$))|v2\/(?:projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$))/.test(
             pathname,
           )
         )
@@ -116,9 +127,17 @@ export const test = base.extend<{ isolation: void }>({
             throw new Error('Business storage access');
           };
       }, sentinels);
-      await context.route('**/api/v1/dashboards/home', (route) =>
+      await context.route('**/api/v2/dashboards/home', (route) =>
         route.fulfill({
-          json: { id: 'home', schemaVersion: 1, revision: 1, widgets: savedHomeFixture },
+          json: { id: 'home', schemaVersion: 2, revision: 1, widgets: savedHomeFixture },
+        }),
+      );
+      await context.route('**/api/v2/projects/category-counts', (route) =>
+        route.fulfill({
+          json: {
+            items: [{ categoryId: null, active: 0, archived: 0 }],
+            totals: { active: 0, archived: 0 },
+          },
         }),
       );
       await use();

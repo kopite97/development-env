@@ -9,7 +9,7 @@ test('async editor retains failed draft, waits before closing and writes only ch
     title: 'Original',
     projectId: id(1),
     projectName: 'Project 1',
-    scope: 'unity',
+    categoryId: null,
     status: 'todo',
     priority: 'normal',
     tag: '',
@@ -20,20 +20,29 @@ test('async editor retains failed draft, waits before closing and writes only ch
   };
   let fail = true;
   const writes: Record<string, unknown>[] = [];
-  await page.route('**/api/v1/**', async (route) => {
+  await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url()),
       p = url.searchParams;
+    if (url.pathname === '/api/v1/project-categories')
+      return route.fulfill({ json: { items: [], total: 0 } });
+    if (url.pathname === '/api/v2/projects/category-counts')
+      return route.fulfill({
+        json: {
+          items: [{ categoryId: null, active: 1, archived: 0 }],
+          totals: { active: 1, archived: 0 },
+        },
+      });
     if (url.pathname === '/api/v1/me') return route.fulfill({ json: identity });
     if (url.pathname === '/api/v1/auth/csrf') return route.fulfill({ json: { csrfToken: 'test' } });
-    if (url.pathname === '/api/v1/overview') return route.fulfill({ json: overview() });
-    if (url.pathname === '/api/v1/projects')
+    if (url.pathname === '/api/v2/overview') return route.fulfill({ json: overview() });
+    if (url.pathname === '/api/v2/projects')
       return route.fulfill({ json: { items: [project(1)], total: 1, nextCursor: null } });
-    if (url.pathname === '/api/v1/projects/' + id(1)) return route.fulfill({ json: project(1) });
-    if (url.pathname === '/api/v1/tasks/stats')
+    if (url.pathname === '/api/v2/projects/' + id(1)) return route.fulfill({ json: project(1) });
+    if (url.pathname === '/api/v2/tasks/stats')
       return route.fulfill({
         json: { counts: { todo: 1, doing: 0, done: 0 }, total: 1, asOf: task.createdAt },
       });
-    if (url.pathname === '/api/v1/tasks')
+    if (url.pathname === '/api/v2/tasks')
       return route.fulfill({
         json: {
           items: p.get('deleted') === 'false' && p.get('status') === task.status ? [task] : [],
@@ -41,7 +50,7 @@ test('async editor retains failed draft, waits before closing and writes only ch
           nextCursor: null,
         },
       });
-    if (url.pathname === '/api/v1/tasks/' + task.id) {
+    if (url.pathname === '/api/v2/tasks/' + task.id) {
       if (route.request().method() === 'PATCH') {
         const body = route.request().postDataJSON();
         writes.push(body);

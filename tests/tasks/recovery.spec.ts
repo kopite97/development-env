@@ -1,22 +1,22 @@
 import { test, expect, setup, task, id, identity, project } from './fixtures';
 import fs from 'node:fs';
-test('Task scope/search deep links survive reload and filter changes replace the history entry', async ({
+test('Task Category/search deep links survive reload and history restores filters', async ({
   page,
 }) => {
   const state = await setup(page);
   state.tasks[0].title = 'Literal %_ title';
-  await page.goto('/tasks?scope=unity&q=%25_');
+  await page.goto('/tasks?category=uncategorized&q=%25_');
   await expect(page.getByLabel('현재 화면 검색')).toHaveValue('%_');
   await expect(page.getByRole('button', { name: 'Literal %_ title', exact: true })).toBeVisible();
   const length = await page.evaluate(() => history.length);
   await page.getByLabel('현재 화면 검색').fill('Literal');
   await expect(page).toHaveURL(/q=Literal/);
-  expect(await page.evaluate(() => history.length)).toBe(length);
+  expect(await page.evaluate(() => history.length)).toBe(length + 1);
   await page.reload();
   await expect(page.getByLabel('현재 화면 검색')).toHaveValue('Literal');
   await page.getByLabel('현재 화면 검색').fill('No match');
   await page.getByRole('button', { name: '검색·필터 초기화' }).click();
-  await expect(page).toHaveURL('/tasks');
+  await expect(page).toHaveURL('/tasks?category=all');
 });
 
 test('same-account checking retains a draft; account change destroys it without a queued write', async ({
@@ -47,7 +47,7 @@ for (const status of [200, 401, 403])
       release = r;
     });
     let old = true;
-    await page.route('**/api/v1/tasks?*', async (route) => {
+    await page.route('**/api/v2/tasks?*', async (route) => {
       if (!old) return route.fallback();
       await wait;
       return route.fulfill({
@@ -79,7 +79,7 @@ test('CSRF recovery never replays a creation automatically and retains its exact
 }) => {
   await setup(page);
   const writes: { key?: string; body: string | null }[] = [];
-  await page.route('**/api/v1/tasks', (route) => {
+  await page.route('**/api/v2/tasks', (route) => {
     writes.push({
       key: route.request().headers()['idempotency-key'],
       body: route.request().postData(),
@@ -89,7 +89,7 @@ test('CSRF recovery never replays a creation automatically and retains its exact
   await page.goto('/tasks');
   await page.getByRole('button', { name: '태스크 추가', exact: true }).first().click();
   await page.getByLabel('태스크 제목').fill('CSRF draft');
-  await page.getByLabel('프로젝트').selectOption(id(1));
+  await page.getByLabel('프로젝트', { exact: true }).selectOption(id(1));
   await page.getByRole('button', { name: '태스크 저장' }).click();
   await expect(page.getByLabel('태스크 제목')).toHaveValue('CSRF draft');
   await expect(page.getByRole('button', { name: '태스크 저장' })).toBeEnabled();
@@ -104,7 +104,7 @@ test('Project options paginate and independently retain the archived relation', 
 }) => {
   const state = await setup(page);
   state.tasks[0].projectId = id(99);
-  await page.route('**/api/v1/projects?*', (route) => {
+  await page.route('**/api/v2/projects?*', (route) => {
     const more = new URL(route.request().url()).searchParams.has('cursor');
     return route.fulfill({
       json: {
@@ -114,17 +114,19 @@ test('Project options paginate and independently retain the archived relation', 
       },
     });
   });
-  await page.route('**/api/v1/projects/' + id(99), (route) =>
+  await page.route('**/api/v2/projects/' + id(99), (route) =>
     route.fulfill({ json: { ...project(99), status: 'archived' } }),
   );
   await page.goto('/tasks');
   await page.getByRole('button', { name: 'Task 50', exact: true }).click();
-  await expect(page.getByLabel('프로젝트')).toHaveValue(id(99));
-  await expect(page.getByLabel('프로젝트').locator('option:checked')).toContainText('보관됨');
-  await page.getByRole('button', { name: '프로젝트 더 불러오기' }).click();
-  await expect(page.getByLabel('프로젝트').locator('option[value="' + id(21) + '"]')).toHaveCount(
-    1,
-  );
+  await expect(page.getByLabel('프로젝트', { exact: true })).toHaveValue(id(99));
+  await expect(
+    page.getByLabel('프로젝트', { exact: true }).locator('option:checked'),
+  ).toContainText('보관됨');
+  await page.getByRole('dialog').getByRole('button', { name: '프로젝트 더 불러오기' }).click();
+  await expect(
+    page.getByLabel('프로젝트', { exact: true }).locator('option[value="' + id(21) + '"]'),
+  ).toHaveCount(1);
   await page.getByLabel('태스크 제목').fill('Archived kept');
   await page.getByRole('button', { name: '태스크 저장' }).click();
   await expect.poll(() => state.writes.length).toBe(1);
@@ -142,7 +144,7 @@ test('Home budget remains combined after status movement and stats exceed loaded
   await expect(page.locator('.task')).toHaveCount(20);
   expect(
     state.requests
-      .filter((u) => u.pathname === '/api/v1/tasks' && u.searchParams.get('deleted') === 'false')
+      .filter((u) => u.pathname === '/api/v2/tasks' && u.searchParams.get('deleted') === 'false')
       .every((u) => !u.searchParams.has('status') && u.searchParams.get('limit') === '20'),
   ).toBe(true);
   await expect(page.locator('.column-todo .count')).toHaveText('12');

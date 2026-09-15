@@ -1,4 +1,4 @@
-import { defaultLayout as savedHomeFixture } from '../../src/features/dashboard/model';
+import { savedHomeFixture } from '../api-fixtures';
 import { test as base, expect, type Page } from '@playwright/test';
 import { id, identity, overview, project } from '../projects/fixtures';
 export { id, identity, project };
@@ -8,7 +8,7 @@ export const task = (n = 50) => ({
   title: 'Task ' + n,
   projectId: id(1),
   projectName: 'Project 1',
-  scope: 'unity',
+  categoryId: null,
   status: 'todo',
   priority: 'normal',
   tag: '',
@@ -24,37 +24,50 @@ export async function setup(page: Page) {
     writes: [] as { method: string; body: Record<string, unknown>; key?: string }[],
     requests: [] as URL[],
   };
-  await page.route('**/api/v1/**', async (route) => {
+  await page.route('**/api/**', async (route) => {
     const req = route.request(),
       url = new URL(req.url()),
       p = url.searchParams;
     state.requests.push(url);
-    if (url.pathname === '/api/v1/dashboards/home')
+    if (url.pathname === '/api/v2/dashboards/home')
       return route.fulfill({
-        json: { id: 'home', schemaVersion: 1, revision: 1, widgets: savedHomeFixture },
+        json: { id: 'home', schemaVersion: 2, revision: 1, widgets: savedHomeFixture },
       });
     if (url.pathname === '/api/v1/me') return route.fulfill({ json: state.identity });
+    if (url.pathname === '/api/v1/project-categories')
+      return route.fulfill({ json: { items: [], total: 0 } });
     if (url.pathname === '/api/v1/auth/csrf') return route.fulfill({ json: { csrfToken: 'test' } });
-    if (url.pathname === '/api/v1/overview')
-      return route.fulfill({ json: overview(p.get('scope') ?? 'all', p.get('projectId')) });
-    if (url.pathname === '/api/v1/projects')
+    if (url.pathname === '/api/v2/overview')
+      return route.fulfill({ json: overview(p.get('category') ?? 'all', p.get('projectId')) });
+    if (url.pathname === '/api/v2/projects')
       return route.fulfill({ json: { items: [project(1)], total: 1, nextCursor: null } });
-    if (url.pathname.startsWith('/api/v1/projects/')) return route.fulfill({ json: project(1) });
-    if (url.pathname === '/api/v1/links')
+    if (url.pathname === '/api/v2/projects/category-counts')
+      return route.fulfill({
+        json: {
+          items: [{ categoryId: null, active: 1, archived: 0 }],
+          totals: { active: 1, archived: 0 },
+        },
+      });
+    if (url.pathname.startsWith('/api/v2/projects/')) return route.fulfill({ json: project(1) });
+    if (url.pathname === '/api/v2/links')
       return route.fulfill({
         json: { items: [], total: 0, nextCursor: null, collectionRevision: 0 },
       });
-    if (url.pathname === '/api/v1/journals' || url.pathname === '/api/v1/milestones')
+    if (url.pathname === '/api/v2/journals' || url.pathname === '/api/v2/milestones')
       return route.fulfill({ json: { items: [], total: 0, nextCursor: null } });
     const rows = state.tasks.filter(
       (t) =>
-        (!p.get('scope') || p.get('scope') === 'all' || t.scope === p.get('scope')) &&
+        (!p.get('category') ||
+          p.get('category') === 'all' ||
+          (p.get('category') === 'uncategorized'
+            ? t.categoryId === null
+            : t.categoryId === p.get('category'))) &&
         (!p.get('projectId') || t.projectId === p.get('projectId')) &&
         (!p.get('query') ||
           t.title.includes(p.get('query')!) ||
           t.projectName.includes(p.get('query')!)),
     );
-    if (url.pathname === '/api/v1/tasks/stats') {
+    if (url.pathname === '/api/v2/tasks/stats') {
       const live = rows.filter((t) => !t.deletedAt);
       return route.fulfill({
         json: {
@@ -69,7 +82,7 @@ export async function setup(page: Page) {
         },
       });
     }
-    if (url.pathname === '/api/v1/tasks' && req.method() === 'GET') {
+    if (url.pathname === '/api/v2/tasks' && req.method() === 'GET') {
       const items = rows.filter(
         (t) =>
           Boolean(t.deletedAt) === (p.get('deleted') === 'true') &&
@@ -83,7 +96,7 @@ export async function setup(page: Page) {
         },
       });
     }
-    if (url.pathname.startsWith('/api/v1/tasks')) {
+    if (url.pathname.startsWith('/api/v2/tasks')) {
       const row = state.tasks.find((t) => url.pathname.split('/')[4] === t.id);
       if (req.method() === 'GET')
         return route.fulfill({
@@ -92,7 +105,7 @@ export async function setup(page: Page) {
         });
       const body = req.postData() ? req.postDataJSON() : {};
       state.writes.push({ method: req.method(), body, key: req.headers()['idempotency-key'] });
-      if (url.pathname === '/api/v1/tasks') {
+      if (url.pathname === '/api/v2/tasks') {
         const created = { ...task(51), ...body };
         state.tasks.push(created);
         return route.fulfill({ status: 201, json: created });
@@ -118,7 +131,7 @@ export const test = base.extend<{ isolation: void }>({
         const p = new URL(request.url()).pathname;
         if (
           p.startsWith('/api/') &&
-          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$)/.test(
+          !/^\/api\/(?:v1\/(?:me$|auth\/|project-categories(?:\/|$))|v2\/(?:projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$))/.test(
             p,
           )
         )
@@ -141,9 +154,17 @@ export const test = base.extend<{ isolation: void }>({
             },
           });
       }, keys);
-      await context.route('**/api/v1/dashboards/home', (route) =>
+      await context.route('**/api/v2/dashboards/home', (route) =>
         route.fulfill({
-          json: { id: 'home', schemaVersion: 1, revision: 1, widgets: savedHomeFixture },
+          json: { id: 'home', schemaVersion: 2, revision: 1, widgets: savedHomeFixture },
+        }),
+      );
+      await context.route('**/api/v2/projects/category-counts', (route) =>
+        route.fulfill({
+          json: {
+            items: [{ categoryId: null, active: 0, archived: 0 }],
+            totals: { active: 0, archived: 0 },
+          },
         }),
       );
       await use();

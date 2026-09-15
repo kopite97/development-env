@@ -1,4 +1,8 @@
-import type { Scope } from '../features/projects/scope';
+import {
+  readCategoryFilter,
+  readProjectFilter,
+  type CategoryOption,
+} from '../features/projects/categoryFilter';
 import type { JournalStore } from '../features/journal/apiStore';
 import type { JournalMemory } from '../features/journal/draftMemory';
 import type { JournalProjectOptions } from '../features/journal/projectOptions';
@@ -6,6 +10,7 @@ import { ApiJournalWorkspace } from '../features/journal/ApiJournalWorkspace';
 
 export function ServerJournalsPage({
   store,
+  categories,
   options,
   memory,
   url,
@@ -14,15 +19,11 @@ export function ServerJournalsPage({
   store: JournalStore;
   options: JournalProjectOptions;
   memory: JournalMemory;
+  categories: readonly CategoryOption[];
   url: URL;
   onFilterNavigate: (path: string) => void;
 }) {
-  const scope: Scope =
-    url.searchParams.get('scope') === 'unity'
-      ? 'unity'
-      : url.searchParams.get('scope') === 'server'
-        ? 'server'
-        : 'all';
+  const category = readCategoryFilter(url.searchParams);
   const query = url.searchParams.get('q') ?? '';
   return (
     <ApiJournalWorkspace
@@ -30,12 +31,23 @@ export function ServerJournalsPage({
       store={store}
       options={options}
       memory={memory}
-      scope={scope}
+      category={category}
+      categories={categories}
       queryText={query}
-      onFilterNavigate={(nextScope, nextQuery) => {
-        const params = new URLSearchParams();
-        if (nextScope !== 'all') params.set('scope', nextScope);
+      projectId={readProjectFilter(url.searchParams) ?? ''}
+      from={url.searchParams.get('from') ?? ''}
+      to={url.searchParams.get('to') ?? ''}
+      sort={url.searchParams.get('sort') === 'oldest' ? 'oldest' : 'newest'}
+      onFilterNavigate={(nextCategory, nextQuery, fields = {}) => {
+        const params = new URLSearchParams(url.search);
+        params.delete('scope');
+        params.set('category', nextCategory);
         if (nextQuery) params.set('q', nextQuery);
+        else params.delete('q');
+        for (const [key, value] of Object.entries(fields)) {
+          if (value) params.set(key, value);
+          else params.delete(key);
+        }
         onFilterNavigate('/journals' + (params.size ? '?' + params : ''));
       }}
     />

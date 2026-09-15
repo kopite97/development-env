@@ -59,7 +59,15 @@ export function TaskManager({
           </Button>
         </EmptyState>
       )}
-      <TaskBoard scope={scope} tasks={visible} onTaskChange={changeStatus} onEdit={setEditor} />
+      <TaskBoard
+        scope={scope}
+        tasks={visible}
+        onTaskChange={changeStatus}
+        onEdit={(row) => {
+          const task = visible.find((item) => item.id === row.id);
+          if (task) setEditor(task);
+        }}
+      />
       {editor && (
         <TaskEditor
           existing={editor === 'new' ? undefined : editor}

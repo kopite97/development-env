@@ -2,7 +2,7 @@ import type { Query } from '../../shared/http/query';
 export type DashboardProjectOption = {
   id: string;
   name: string;
-  scope: 'unity' | 'server';
+  categoryId: string | null;
   archived: boolean;
 };
 export type DashboardProjectOptions = {

@@ -24,7 +24,7 @@ test('checking gates private content; StrictMode, deep links, reload and account
     await pending;
     await route.fulfill({ json: identity });
   });
-  await page.goto('/projects/example?scope=server&q=work&archived=true');
+  await page.goto('/projects/example?category=uncategorized&q=work&archived=true');
   await expect(page.getByRole('status')).toHaveText('Checking your session…');
   await expect(page.getByText('Alice', { exact: true })).toHaveCount(0);
   release();
@@ -33,7 +33,7 @@ test('checking gates private content; StrictMode, deep links, reload and account
   ).toBeVisible();
   expect(calls).toBe(1);
   await expect(
-    page.getByText('Invalid Project address. Select a server Project from Projects.'),
+    page.getByText('잘못된 프로젝트 주소입니다. 목록에서 프로젝트를 선택해 주세요.'),
   ).toBeVisible();
   await page.reload();
   await expect(
@@ -50,11 +50,14 @@ test('checking gates private content; StrictMode, deep links, reload and account
   await expect(
     page.getByRole('region', { name: 'Alice · Alice workspace', exact: true }),
   ).toHaveCount(0);
-  await page.getByRole('link', { name: 'Tasks', exact: true }).click();
+  await page
+    .locator('.sidebar nav')
+    .getByRole('button', { name: '작업 보드', exact: true })
+    .click();
   await expect(page.getByRole('heading', { name: '작업 보드', exact: true })).toBeVisible();
   await page.goBack();
   await expect(
-    page.getByText('Invalid Project address. Select a server Project from Projects.'),
+    page.getByText('잘못된 프로젝트 주소입니다. 목록에서 프로젝트를 선택해 주세요.'),
   ).toBeVisible();
 });
 for (const scenario of [
@@ -115,6 +118,6 @@ test('unknown routes and long names fit mobile with visible keyboard focus', asy
   await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('link', { name: 'Devspace' })).toBeFocused();
+  await expect(page.getByRole('button', { name: '메뉴 열기' })).toBeFocused();
   await page.screenshot({ path: 'test-results/auth-mobile.png', fullPage: true });
 });

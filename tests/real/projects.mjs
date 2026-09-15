@@ -59,14 +59,14 @@ export async function validateProjects({ page, context, origin, sql, alice, outp
     200,
   );
   await page.goto(origin + '/projects');
-  await expect(page.getByText('22 matching Projects · 20 loaded rows')).toBeVisible();
-  await page.getByRole('button', { name: 'Load more', exact: true }).click();
-  await expect(page.getByText('22 matching Projects · 22 loaded rows')).toBeVisible();
+  await expect(page.locator('.project-row')).toHaveCount(20);
+  await page.getByRole('button', { name: '프로젝트 더 보기', exact: true }).click();
+  await expect(page.locator('.project-row')).toHaveCount(22);
   await page.goto(origin + '/projects/' + selected.id + '?q=missing');
-  await expect(page.getByText('Archived Project · unity')).toBeVisible();
+  await expect(page.locator('.project-summary .badge').first()).toHaveText('보관됨');
   await expect(page.getByRole('heading', { name: selected.name, exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Back to Projects' }).click();
-  await expect(page.getByText('No Projects match this search.')).toBeVisible();
+  await page.getByRole('button', { name: '프로젝트 목록' }).click();
+  await expect(page.getByText('검색 조건에 맞는 프로젝트가 없어요')).toBeVisible();
   assert.equal(
     (
       await context.request.get(origin + '/api/v1/projects/00000000-0000-0000-0000-000000000099')
@@ -88,7 +88,9 @@ export async function validateProjects({ page, context, origin, sql, alice, outp
     404,
   );
   await page.goto(origin + '/projects/' + outsiderProject);
-  await expect(page.getByText('Project not found or unavailable to this account.')).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText(
+    '프로젝트가 없거나 더 이상 접근할 수 없어요.',
+  );
   sql(
     `delete from projects where id='${outsiderProject}'; delete from workspaces where id='${outsiderWorkspace}'; delete from users where id='${outsider}'`,
   );
@@ -120,13 +122,13 @@ export async function validateProjects({ page, context, origin, sql, alice, outp
       await route.abort('failed');
     });
     await page.goto(origin + '/projects');
-    await page.getByRole('button', { name: 'Create Project', exact: true }).click();
-    await page.getByLabel('Name', { exact: true }).fill('Real replay');
-    await page.getByLabel('Stack', { exact: true }).fill('Java');
-    await page.getByRole('button', { name: 'Save Project', exact: true }).click();
+    await page.getByRole('button', { name: '프로젝트 추가', exact: true }).first().click();
+    await page.getByLabel('프로젝트 이름', { exact: true }).fill('Real replay');
+    await page.getByLabel('기술 스택', { exact: true }).fill('Java');
+    await page.getByRole('button', { name: '프로젝트 저장', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Creation was not confirmed');
     assert.equal(sql("select count(*) from projects where name='Real replay'"), '1');
-    await page.getByRole('button', { name: 'Retry creation' }).click();
+    await page.getByRole('button', { name: '생성 다시 시도' }).click();
     await expect(page.getByRole('heading', { name: 'Real replay', exact: true })).toBeVisible();
     assert.equal(attempts.length, 2);
     assert.deepEqual(attempts[0], attempts[1]);
@@ -138,10 +140,8 @@ export async function validateProjects({ page, context, origin, sql, alice, outp
     });
     assert.equal(reused.status(), 409);
     assert.equal((await reused.json()).code, 'IDEMPOTENCY_KEY_REUSED');
-    await page.getByRole('button', { name: 'Edit Project', exact: true }).click();
-    await page
-      .getByLabel('Current milestone memo', { exact: true })
-      .fill('Plain memo, no resource');
+    await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
+    await page.getByLabel('프로젝트 목표 메모', { exact: true }).fill('Plain memo, no resource');
     assert.equal(
       (
         await context.request.patch(origin + '/api/v1/projects/' + newId, {
@@ -151,12 +151,12 @@ export async function validateProjects({ page, context, origin, sql, alice, outp
       ).status(),
       200,
     );
-    await page.getByRole('button', { name: 'Save Project', exact: true }).click();
+    await page.getByRole('button', { name: '프로젝트 저장', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('changed elsewhere');
-    await page.getByRole('button', { name: 'Review reapplication' }).click();
-    await expect(page.getByLabel('Subtitle', { exact: true })).toHaveValue('Other client');
-    await page.getByRole('button', { name: 'Save Project', exact: true }).click();
-    await expect(page.getByText('Current milestone memo: Plain memo, no resource')).toBeVisible();
+    await page.getByRole('button', { name: '내 변경 다시 적용' }).click();
+    await expect(page.getByLabel('프로젝트 설명', { exact: true })).toHaveValue('Other client');
+    await page.getByRole('button', { name: '프로젝트 저장', exact: true }).click();
+    await expect(page.locator('.project-summary')).toContainText('Plain memo, no resource');
     const replay = await context.request.post(origin + '/api/v1/projects', {
       headers: { ...headers, 'Idempotency-Key': attempts[0].key },
       data: attempts[0].body,
@@ -168,8 +168,9 @@ export async function validateProjects({ page, context, origin, sql, alice, outp
       3,
     );
     page.on('dialog', (dialog) => dialog.accept());
-    await page.getByRole('button', { name: 'Archive Project', exact: true }).click();
-    await expect(page.getByText('Archived Project · unity')).toBeVisible();
+    await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
+    await page.getByRole('button', { name: '프로젝트 보관', exact: true }).click();
+    await expect(page.locator('.project-summary .badge').first()).toHaveText('보관됨');
     assert.equal(sql('select count(*) from milestones'), '0');
     assert.equal(sql('select count(*) from projects'), '24');
     await page.unroute('**/api/v1/projects');
@@ -190,11 +191,12 @@ export async function validateProjects({ page, context, origin, sql, alice, outp
       `insert into tasks (id,workspace_id,project_id,title,status,created_at,updated_at,deleted_at) values (gen_random_uuid(),'${alice.workspace.id}','${active.id}','deleted task','done',now(),now(),now())`,
     );
     await page.goto(origin + '/projects?q=no-match');
-    await expect(page.getByText('No Projects match this search.')).toBeVisible();
-    const counters = page.getByRole('region', { name: 'Overview counters' });
-    await expect(counters.locator('dd')).toHaveText(['22', '2', '2', '1', '1', '0']);
+    await expect(page.getByText('검색 조건에 맞는 프로젝트가 없어요')).toBeVisible();
+    await expect(page.locator('.stats strong')).toHaveText(['22개', '1개', '0개']);
     await page.goto(origin + '/projects/' + selected.id + '?scope=server');
-    await expect(counters.locator('dd')).toHaveText(['0', '1', '1', '1', '0', '0']);
+    await expect(
+      page.getByRole('region', { name: '프로젝트 작업', exact: true }).locator('.panel-heading'),
+    ).toContainText('전체 1개 · 진행 중 0개 · 완료 0개');
     const intersection = await context.request.get(
       origin + '/api/v1/overview?scope=server&projectId=' + selected.id,
     );

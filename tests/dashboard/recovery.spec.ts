@@ -63,7 +63,7 @@ for (const status of [200, 401, 403])
       release = r;
     });
     await page.route('**/api/v1/me', (r) => r.fulfill({ json: account }));
-    await page.route('**/api/v1/dashboards/home', async (r) => {
+    await page.route('**/api/v2/dashboards/home', async (r) => {
       if (r.request().method() === 'PUT') {
         started = true;
         await pending;
@@ -100,7 +100,7 @@ test('Overview omitted limit keeps pages and confirmed rows on failure; explicit
   page,
 }) => {
   await setup(page);
-  await page.route('**/api/v1/dashboards/home', (r) =>
+  await page.route('**/api/v2/dashboards/home', (r) =>
     r.fulfill({
       json: dashboard(1, [
         defaults[0],
@@ -109,7 +109,7 @@ test('Overview omitted limit keeps pages and confirmed rows on failure; explicit
     }),
   );
   let failed = true;
-  await page.route('**/api/v1/projects?*', (r) => {
+  await page.route('**/api/v2/projects?*', (r) => {
     const next = new URL(r.request().url()).searchParams.has('cursor');
     return r.fulfill(
       next && failed
@@ -142,7 +142,7 @@ test('repeated boards have separate drafts and layout changes require unsaved na
   page,
 }) => {
   await setup(page);
-  await page.route('**/api/v1/dashboards/home', (r) =>
+  await page.route('**/api/v2/dashboards/home', (r) =>
     r.fulfill({
       json: dashboard(1, [
         { ...defaults[1], id: 'a' },

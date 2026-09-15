@@ -1,189 +1,131 @@
-import { useEffect, useState } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { Plus } from 'lucide-react';
 import { HttpError } from '../../shared/http/client';
 import { useQuery } from '../../shared/http/query';
-import { presentation, serverProjectId, type ApiProject } from './apiModel';
+import { Button, EmptyState } from '../../shared/ui/controls';
+import { projectPresentation, serverProjectId, type ApiProject } from './apiModel';
 import type { ProjectFilter, ProjectStore } from './apiStore';
+import { ProjectOverview } from './ProjectOverview';
+import { ProjectSummary } from './ProjectSummary';
+import { ProjectDetailLayout } from './ProjectDetailLayout';
 
 export function ProjectListView({
   store,
   filter,
-  onFilter,
+  counts,
   onSelect,
   onCreate,
+  onReset,
 }: {
   store: ProjectStore;
   filter: ProjectFilter;
-  onFilter: (filter: ProjectFilter) => void;
+  counts: { projects?: number; doing?: number; done?: number };
   onSelect: (id: string) => void;
-  onCreate?: () => void;
+  onCreate: () => void;
+  onReset: () => void;
 }) {
-  const [search, setSearch] = useState(filter.query);
-  useEffect(() => setSearch(filter.query), [filter.query]);
-  useEffect(() => {
-    if (search === filter.query) return;
-    const timer = setTimeout(() => onFilter({ ...filter, query: search }), 250);
-    return () => clearTimeout(timer);
-  }, [search, filter, onFilter]);
   const query = store.list(filter),
     state = useQuery(query);
   useEffect(() => () => query.invalidate(true), [query]);
   return (
-    <section aria-labelledby="projects-title">
-      <h3 id="projects-title">Projects</h3>
-      <div className="project-toolbar">
-        <label>
-          Scope
-          <select
-            value={filter.scope}
-            onChange={(event) =>
-              onFilter({ ...filter, scope: event.target.value as ProjectFilter['scope'] })
-            }
-          >
-            <option value="all">All scopes</option>
-            <option value="unity">Unity</option>
-            <option value="server">Server</option>
-          </select>
-        </label>
-        <label>
-          Search Projects
-          <input value={search} onChange={(event) => setSearch(event.target.value)} type="search" />
-        </label>
-        {onCreate && <button onClick={onCreate}>Create Project</button>}
-      </div>
-      <div aria-label="Project status" className="project-toolbar">
-        {(['active', 'archived'] as const).map((status) => (
-          <button
-            key={status}
-            aria-pressed={filter.status === status}
-            onClick={() => onFilter({ ...filter, status })}
-          >
-            {status === 'active' ? 'Active' : 'Archived'}
-          </button>
-        ))}
-      </div>
-      {state.status === 'loading' && (
-        <p role="status">{state.data ? 'Loading more Projects…' : 'Loading Projects…'}</p>
-      )}
+    <section aria-label="프로젝트 목록">
+      <ProjectOverview
+        projects={(state.data?.items ?? []).map(projectPresentation)}
+        search={filter.query}
+        filteredResults={{ total: state.data?.total ?? 0 }}
+        counts={counts}
+        archived={filter.status === 'archived'}
+        hideEmpty={state.status !== 'ready'}
+        onOpen={onSelect}
+        onReset={onReset}
+        emptyAction={
+          <Button onClick={onCreate}>
+            <Plus size={16} />
+            프로젝트 추가
+          </Button>
+        }
+      />
+      {state.status === 'loading' && <p role="status">프로젝트를 불러오는 중…</p>}
       {state.status === 'error' && (
-        <div role="alert">
-          <p>
-            Projects could not be loaded.
-            {state.error instanceof HttpError && state.error.requestId
-              ? ` Request ID: ${state.error.requestId}`
-              : ''}
-          </p>
+        <div className="notice" role="alert">
+          <p>프로젝트를 불러오지 못했습니다.</p>
           {state.data?.nextCursor &&
             !(state.error instanceof HttpError && state.error.code === 'INVALID_CURSOR') && (
-              <button onClick={() => void store.more(filter)}>Retry Load more</button>
+              <Button onClick={() => void store.more(filter)}>다시 시도</Button>
             )}
-          <button onClick={() => query.invalidate(true)}>Restart list</button>
+          <Button onClick={() => query.invalidate(true)}>목록 다시 불러오기</Button>
         </div>
       )}
-      {state.data && (
-        <>
-          <p>
-            {state.data.total} matching Projects · {state.data.items.length} loaded rows
-          </p>
-          {!state.data.items.length && (
-            <p>{filter.query ? 'No Projects match this search.' : 'No Projects in this view.'}</p>
-          )}
-          <ul className="server-project-list">
-            {state.data.items.map((project) => (
-              <li key={project.id} className={'project-color-' + presentation(project).color}>
-                <button className="project-link" onClick={() => onSelect(project.id)}>
-                  {project.name}
-                </button>
-                <p>
-                  {project.stack} · {project.scope} · {project.progress}%
-                </p>
-                <p>{project.subtitle}</p>
-              </li>
-            ))}
-          </ul>
-          {state.data.nextCursor && (
-            <button disabled={state.status === 'loading'} onClick={() => void store.more(filter)}>
-              Load more
-            </button>
-          )}
-        </>
+      {state.status !== 'error' && state.data?.nextCursor && (
+        <Button disabled={state.status === 'loading'} onClick={() => void store.more(filter)}>
+          프로젝트 더 보기
+        </Button>
       )}
-      <button disabled={state.status === 'loading'} onClick={() => query.invalidate(true)}>
-        Refresh Projects
-      </button>
     </section>
   );
 }
-export function ProjectDetailView({
-  store,
-  id,
-  children,
-}: {
+
+type DetailProps = {
   store: ProjectStore;
   id: string;
-  children?: (project: ApiProject, verified: boolean) => React.ReactNode;
-}) {
+  onBack: () => void;
+  actions: (project: ApiProject, verified: boolean) => ReactNode;
+  children: (project: ApiProject) => ReactNode;
+  category?: (project: ApiProject) => ReactNode;
+};
+export function ProjectDetailView(props: DetailProps) {
   try {
-    serverProjectId(id);
+    serverProjectId(props.id);
   } catch {
-    return <p role="alert">Invalid Project address. Select a server Project from Projects.</p>;
+    return (
+      <ProjectDetailLayout title="프로젝트를 찾을 수 없어요" onBack={props.onBack}>
+        <p className="notice" role="alert">
+          잘못된 프로젝트 주소입니다. 목록에서 프로젝트를 선택해 주세요.
+        </p>
+      </ProjectDetailLayout>
+    );
   }
-  return <VerifiedDetail store={store} id={id} children={children} />;
+  return <VerifiedDetail {...props} />;
 }
-function VerifiedDetail({
-  store,
-  id,
-  children,
-}: {
-  store: ProjectStore;
-  id: string;
-  children?: (project: ApiProject, verified: boolean) => React.ReactNode;
-}) {
+function VerifiedDetail({ store, id, children, actions, onBack, category }: DetailProps) {
   const query = store.detail(serverProjectId(id)),
     state = useQuery(query);
   useEffect(() => () => query.invalidate(), [query]);
   const missing = state.error instanceof HttpError && state.error.status === 404;
+  const project = missing ? undefined : state.data;
+  const verified = state.status === 'ready' && !state.stale;
   return (
-    <section>
-      {state.status === 'loading' && <p role="status">Loading Project…</p>}
-      {state.status === 'error' && (
-        <div role="alert">
-          <p>
-            {missing
-              ? 'Project not found or unavailable to this account.'
-              : 'Project could not be refreshed.'}
-          </p>
-          <button onClick={() => void query.load()}>Retry Project</button>
-        </div>
-      )}
-      {state.data && !missing && (
+    <ProjectDetailLayout
+      title={
+        project?.name ??
+        (state.status === 'loading' ? '프로젝트를 불러오는 중…' : '프로젝트를 찾을 수 없어요')
+      }
+      onBack={onBack}
+      actions={project && actions(project, verified)}
+      feedback={
         <>
-          <h3>{state.data.name}</h3>
-          <p>
-            {state.data.status === 'archived' ? 'Archived Project' : 'Active Project'} ·{' '}
-            {state.data.scope}
-          </p>
-          <p>{state.data.subtitle}</p>
-          <p>
-            {state.data.stack} · Progress: {state.data.progress}%
-          </p>
-          <p>Current milestone memo: {state.data.currentMilestone || 'None'}</p>
-          <p>Repository: {state.data.repositoryUrl || 'None'}</p>
-          <p className="project-audit">
-            Project ID: {state.data.id}
-            <br />
-            Revision: {state.data.revision}
-            <br />
-            Created: {state.data.createdAt}
-            <br />
-            Updated: {state.data.updatedAt}
-          </p>
-          {children?.(state.data, state.status === 'ready' && !state.stale)}
-          <p>Link integration pending.</p>
+          {state.status === 'loading' && <p role="status">프로젝트를 불러오는 중…</p>}
+          {state.status === 'error' && (
+            <p className="notice" role="alert">
+              {missing
+                ? '프로젝트가 없거나 더 이상 접근할 수 없어요.'
+                : '프로젝트를 새로 불러오지 못했습니다.'}
+              <Button onClick={() => void query.load()}>다시 시도</Button>
+            </p>
+          )}
         </>
+      }
+    >
+      {project ? (
+        <>
+          <ProjectSummary project={projectPresentation(project)} category={category?.(project)} />
+          {verified && children(project)}
+        </>
+      ) : (
+        state.status !== 'loading' && (
+          <EmptyState title="프로젝트가 없거나 더 이상 접근할 수 없어요" />
+        )
       )}
-      <button disabled={state.status === 'loading'} onClick={() => query.invalidate()}>
-        Refresh Project
-      </button>
-    </section>
+    </ProjectDetailLayout>
   );
 }

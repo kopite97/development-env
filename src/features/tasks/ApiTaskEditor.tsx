@@ -112,14 +112,18 @@ export function ApiTaskEditor({
       } else {
         const intent = editor.intent ?? createIntent(editor.draft);
         update({ ...editor, intent });
-        result = await store.mutate('create', { body: retryBody(intent), key: intent.key });
+        result = await store.mutate('create', {
+          body: retryBody(intent),
+          key: intent.key,
+          endpoint: intent.endpoint ?? '/api/v1/tasks',
+        });
       }
       if (!current()) return;
       memory.editor = undefined;
       onSaved(
         !result.reconciled
           ? '저장은 확인되었습니다. 최신 태스크 조회에 실패했습니다. 목록을 새로고침해 주세요.'
-          : result.task.deletedAt && !deleting
+          : result.task?.deletedAt && !deleting
             ? '생성 요청은 확인되었지만 이 태스크는 현재 휴지통에 있습니다.'
             : undefined,
       );

@@ -39,7 +39,7 @@ test('cold failure is not defaults; retry and saved empty remain genuinely empty
 }) => {
   await setup(page);
   let failed = true;
-  await page.route('**/api/v1/dashboards/home', (r) =>
+  await page.route('**/api/v2/dashboards/home', (r) =>
     r.fulfill(
       failed ? { status: 404, json: { code: 'RESOURCE_NOT_FOUND' } } : { json: dashboard(3, []) },
     ),
@@ -61,14 +61,14 @@ test('editing preserves frame controls, drag, widths, optional config and awaits
   let current = dashboard();
   let release!: () => void;
   const bodies: Record<string, unknown>[] = [];
-  await page.route('**/api/v1/dashboards/home', async (r) => {
+  await page.route('**/api/v2/dashboards/home', async (r) => {
     if (r.request().method() === 'PUT') {
       const body = r.request().postDataJSON();
       bodies.push(body);
       await new Promise<void>((resolve) => {
         release = resolve;
       });
-      current = { ...body, id: 'home', revision: 1 };
+      current = dashboard(1, body.widgets);
     }
     await r.fulfill({ json: current });
   });
@@ -96,13 +96,12 @@ test('editing preserves frame controls, drag, widths, optional config and awaits
   await expect(frame(page, 'home-overview')).toHaveClass(/widget-small/);
   await page.getByRole('button', { name: '배치 저장', exact: true }).click();
   await expect(page.getByRole('button', { name: '저장 중…' })).toBeDisabled();
-  expect(bodies).toHaveLength(1);
-  expect(bodies[0]).toMatchObject({ schemaVersion: 1, revision: 0 });
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0]).toMatchObject({ schemaVersion: 2, revision: 0 });
   expect(Object.keys(bodies[0]).sort()).toEqual(['revision', 'schemaVersion', 'widgets']);
   expect((bodies[0].widgets as Record<string, unknown>[])[0]).toMatchObject({
     title: 'My overview',
-    projectId: id(1),
-    scope: 'all',
+    selection: { kind: 'project', projectId: id(1) },
     limit: 1,
   });
   release();
@@ -116,13 +115,17 @@ test('reset is explicit draft-only, cancel preserves server and utility replacem
   await setup(page);
   const writes: unknown[] = [];
   let current = dashboard(7, [
-    { ...defaults[0], projectId: id(1), limit: 1 } as (typeof defaults)[0],
+    {
+      ...defaults[0],
+      selection: { kind: 'project', projectId: id(1) },
+      limit: 1,
+    } as (typeof defaults)[0],
   ]);
-  await page.route('**/api/v1/dashboards/home', (r) => {
+  await page.route('**/api/v2/dashboards/home', (r) => {
     if (r.request().method() === 'PUT') {
       const b = r.request().postDataJSON();
       writes.push(b);
-      current = { ...b, id: 'home', revision: 8 };
+      current = dashboard(8, b.widgets);
     }
     return r.fulfill({ json: current });
   });
@@ -143,10 +146,16 @@ test('reset is explicit draft-only, cancel preserves server and utility replacem
   await expect(page.getByText('배치를 적용했습니다.')).toBeVisible();
   expect(writes).toEqual([
     {
-      schemaVersion: 1,
+      schemaVersion: 2,
       revision: 7,
       widgets: [
-        { id: 'home-overview', type: 'links', title: '빠른 링크', scope: 'all', size: 'wide' },
+        {
+          id: 'home-overview',
+          type: 'links',
+          title: '빠른 링크',
+          selection: { kind: 'project', projectId: id(1) },
+          size: 'wide',
+        },
       ],
     },
   ]);
@@ -158,7 +167,7 @@ test('conflict preserves full draft and requires review, confirmation and a sepa
   let current = dashboard(4);
   let writes = 0;
   const revisions: number[] = [];
-  await page.route('**/api/v1/dashboards/home', (r) => {
+  await page.route('**/api/v2/dashboards/home', (r) => {
     if (r.request().method() === 'PUT') {
       writes++;
       const body = r.request().postDataJSON();
@@ -167,7 +176,7 @@ test('conflict preserves full draft and requires review, confirmation and a sepa
         current = dashboard(5, [{ ...defaults[2], title: 'Other tab' }]);
         return r.fulfill({ status: 409, json: { code: 'REVISION_CONFLICT' } });
       }
-      current = { ...body, id: 'home', revision: 6 };
+      current = dashboard(6, body.widgets);
     }
     return r.fulfill({ json: current });
   });
@@ -190,10 +199,10 @@ test('ambiguous committed PUT is reconciled by matching GET without replay', asy
   await setup(page);
   let current = dashboard();
   let writes = 0;
-  await page.route('**/api/v1/dashboards/home', (r) => {
+  await page.route('**/api/v2/dashboards/home', (r) => {
     if (r.request().method() === 'PUT') {
       writes++;
-      current = { ...r.request().postDataJSON(), id: 'home', revision: 1 };
+      current = dashboard(1, r.request().postDataJSON().widgets);
       return r.abort('failed');
     }
     return r.fulfill({ json: current });
@@ -213,7 +222,7 @@ test('validation failure preserves draft; failed reconciliation blocks blind sav
   await setup(page);
   let writes = 0;
   let readsFail = false;
-  await page.route('**/api/v1/dashboards/home', (r) => {
+  await page.route('**/api/v2/dashboards/home', (r) => {
     if (r.request().method() === 'PUT') {
       writes++;
       if (writes === 1) return r.fulfill({ status: 404, json: { code: 'RESOURCE_NOT_FOUND' } });
@@ -241,19 +250,19 @@ test('configured filters and direct archived Project work beyond loaded pages; H
   await setup(page);
   const requests: string[] = [];
   page.on('request', (r) => {
-    if (r.url().includes('/api/v1/')) requests.push(r.url());
+    if (r.url().includes('/api/v2/')) requests.push(r.url());
   });
-  await page.route('**/api/v1/projects/' + id(99), (r) =>
+  await page.route('**/api/v2/projects/' + id(99), (r) =>
     r.fulfill({ json: project(99, 'archived') }),
   );
   const widgets = [
-    { ...defaults[0], projectId: id(99), limit: 1 },
-    { ...defaults[4], scope: 'server', limit: 1 },
-    { ...defaults[5], scope: 'server', limit: 1 },
-    { ...defaults[3], scope: 'unity' },
+    { ...defaults[0], selection: { kind: 'project', projectId: id(99) }, limit: 1 },
+    { ...defaults[4], selection: { kind: 'uncategorized' }, limit: 1 },
+    { ...defaults[5], selection: { kind: 'uncategorized' }, limit: 1 },
+    { ...defaults[3], selection: { kind: 'uncategorized' } },
   ];
-  await page.route('**/api/v1/dashboards/home', (r) => r.fulfill({ json: dashboard(2, widgets) }));
-  await page.route('**/api/v1/journals?*', (r) =>
+  await page.route('**/api/v2/dashboards/home', (r) => r.fulfill({ json: dashboard(2, widgets) }));
+  await page.route('**/api/v2/journals?*', (r) =>
     r.fulfill({ json: { items: [journal(1, { scope: 'server' })], total: 1, nextCursor: null } }),
   );
   await page.goto('/');
@@ -266,7 +275,7 @@ test('configured filters and direct archived Project work beyond loaded pages; H
     requests.some(
       (u) =>
         u.includes('journals?') &&
-        u.includes('scope=server') &&
+        u.includes('category=uncategorized') &&
         u.includes('sort=newest') &&
         u.includes('limit=1'),
     ),
@@ -275,7 +284,7 @@ test('configured filters and direct archived Project work beyond loaded pages; H
     requests.some(
       (u) =>
         u.includes('milestones?') &&
-        u.includes('scope=server') &&
+        u.includes('category=uncategorized') &&
         u.includes('status=open') &&
         u.includes('limit=1'),
     ),

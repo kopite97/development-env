@@ -59,7 +59,17 @@ type RequestOptions<T> = {
   response?: 'json' | 'empty';
   expectedStatus?: number;
   parse?: (value: unknown) => T;
+  onMetadata?: (metadata: ResponseMetadata) => void;
 };
+
+export type ResponseMetadata = {
+  workspaceRevision?: string;
+  generation: number;
+};
+
+export function workspaceRevision(value: string | null): string | undefined {
+  return value !== null && /^(0|[1-9]\d*)$/.test(value) ? value : undefined;
+}
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -86,7 +96,7 @@ export function createHttpClient(deps: {
     deps.lifecycle.assert(generation);
     // Encoded path separators and dot segments must not escape the API root.
     if (
-      !/^\/api\/v1\//.test(path) ||
+      !/^\/api\/v(?:1|2)\//.test(path) ||
       /[\\#\s]/.test(path) ||
       /%(?:2e|2f|5c|25)/i.test(path.split('?')[0]) ||
       path.split('?')[0].split('/').includes('..')
@@ -181,7 +191,9 @@ export function createHttpClient(deps: {
         const error = new HttpError(
           response.status,
           text(body.code) ?? 'HTTP_ERROR',
-          'The request could not be completed.',
+          body.code === 'API_VERSION_RETIRED'
+            ? '이전 API의 생성 재시도 기간이 종료되었습니다. 초안과 요청은 유지됩니다. 현재 목록에서 생성 여부를 확인한 후 새 작업을 시작해 주세요.'
+            : 'The request could not be completed.',
           fields,
           text(body.requestId),
         );
@@ -204,6 +216,11 @@ export function createHttpClient(deps: {
       if (options.response === 'empty') {
         if (response.status !== 204)
           throw new HttpError(response.status, 'PROTOCOL_ERROR', 'Unexpected server response.');
+        check();
+        options.onMetadata?.({
+          workspaceRevision: workspaceRevision(response.headers.get('X-Workspace-Data-Revision')),
+          generation,
+        });
         return undefined as T;
       }
       if (!/\bapplication\/(?:[\w.-]+\+)?json\b/i.test(response.headers.get('Content-Type') ?? ''))
@@ -215,11 +232,18 @@ export function createHttpClient(deps: {
         throw new HttpError(response.status, 'PROTOCOL_ERROR', 'Invalid JSON response.');
       }
       check();
+      let parsed: T;
       try {
-        return options.parse ? options.parse(value) : (value as T);
+        parsed = options.parse ? options.parse(value) : (value as T);
       } catch {
         throw new HttpError(response.status, 'PROTOCOL_ERROR', 'Invalid server response.');
       }
+      check();
+      options.onMetadata?.({
+        workspaceRevision: workspaceRevision(response.headers.get('X-Workspace-Data-Revision')),
+        generation,
+      });
+      return parsed;
     } catch (error) {
       // An active auth callback may have retired this generation; preserve its typed error.
       if (error === reportedAuthError) throw error;

@@ -1,3 +1,4 @@
+import type { CategoryFilter } from '../projects/categoryFilter';
 import { useEffect, useRef, useState } from 'react';
 import { Flag } from 'lucide-react';
 import { Button, EmptyState, Field } from '../../shared/ui/controls';
@@ -15,7 +16,7 @@ export function ApiMilestoneList({
   options,
   memory,
   projectId,
-  scope = 'all',
+  category = 'all',
   limit,
   readOnly = false,
   onNavigate,
@@ -24,7 +25,7 @@ export function ApiMilestoneList({
   options: MilestoneProjectOptions;
   memory: MilestoneMemory;
   projectId?: string;
-  scope?: 'all' | 'unity' | 'server';
+  category?: CategoryFilter;
   limit?: number;
   readOnly?: boolean;
   onNavigate: (path: string) => void;
@@ -44,7 +45,7 @@ export function ApiMilestoneList({
     }
   }, [pending]);
   const filter: MilestoneFilter = {
-    scope,
+    category,
     projectId,
     projectStatus: 'all',
     status,

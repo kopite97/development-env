@@ -1,11 +1,13 @@
 import { createBody, type MilestoneDraft } from './apiModel';
 export type MilestoneCreateIntent = {
+  readonly endpoint?: '/api/v1/milestones' | '/api/v2/milestones';
   readonly key: string;
   readonly body: Readonly<ReturnType<typeof createBody>>;
   readonly startedAt: number;
 };
 export function createIntent(draft: MilestoneDraft, now = Date.now()): MilestoneCreateIntent {
   return Object.freeze({
+    endpoint: '/api/v2/milestones',
     key: crypto.randomUUID(),
     body: Object.freeze(createBody(draft)),
     startedAt: now,

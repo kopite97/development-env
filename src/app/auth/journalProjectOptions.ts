@@ -7,18 +7,18 @@ import type {
   JournalProjectOptionsPage,
 } from '../../features/journal/projectOptions';
 
-function option(project: { id: string; name: string; scope: 'unity' | 'server'; status: string }) {
+function option(project: { id: string; name: string; categoryId: string | null; status: string }) {
   return {
     id: project.id,
     name: project.name,
-    scope: project.scope,
+    categoryId: project.categoryId,
     archived: project.status === 'archived',
   } satisfies JournalProjectOption;
 }
 
 export function journalProjectOptions(projects: ProjectStore): JournalProjectOptions {
-  const allFilter = { scope: 'all', status: 'all', query: '' } as const;
-  const activeFilter = { scope: 'all', status: 'active', query: '' } as const;
+  const allFilter = { category: 'all', status: 'all', query: '' } as const;
+  const activeFilter = { category: 'all', status: 'active', query: '' } as const;
   const allSource = projects.list(allFilter);
   const activeSource = projects.list(activeFilter);
   const read = (source: typeof allSource): JournalProjectOptionsPage => {

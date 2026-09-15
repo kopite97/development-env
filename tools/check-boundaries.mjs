@@ -11,6 +11,9 @@ const allowedLayers = {
 };
 // Explicit project contracts are shared intentionally; other features stay independent.
 const projectContracts = new Set([
+  'categoryFilter.ts',
+  'CategoryFilterControl.tsx',
+  'ProjectFilter.tsx',
   'scope.ts',
   'model.ts',
   'ProjectsProvider.tsx',

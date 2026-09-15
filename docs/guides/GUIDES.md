@@ -1,4 +1,4 @@
-# AGENTS.md
+# Development Guides
 
 This directory contains repeatable development and operational guides.
 
@@ -11,3 +11,10 @@ This directory contains repeatable development and operational guides.
 - Keep guides aligned with the current codebase and tooling.
 - Avoid duplicating information maintained elsewhere.
 - Use lowercase kebab-case file names.
+
+## Map
+
+- `development.md` — local development, validation, page/widget changes, and production preview
+- `CONVENTIONS.md` — project-wide coding, structure, naming, and reuse conventions
+- `ENVIRONMENT.md` — environment variables and configuration rules
+- `TESTING.md` — unit, browser, Playwright, real-backend, and visual validation rules

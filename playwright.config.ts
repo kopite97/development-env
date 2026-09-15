@@ -10,6 +10,7 @@ export default defineConfig({
     '**/milestones/**',
     '**/links/**',
     '**/dashboard/**',
+    '**/shell/**',
   ],
   use: { baseURL: 'http://127.0.0.1:4175', browserName: 'chromium' },
   webServer: {

@@ -1,21 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
+import { Plus, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button, EmptyState } from '../../shared/ui/controls';
 import { useQuery } from '../../shared/http/query';
 import { CancelledError, HttpError } from '../../shared/http/client';
-import { LinkRows } from './QuickLinks';
+import { LinkRows } from './LinkRows';
 import { linkDraft, linkIcon, type ApiLink } from './apiModel';
 import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
 import { fullLinks, type LinkFilter, type LinkStore } from './apiStore';
 import type { LinkMemory } from './draftMemory';
+import type { LinkProjectOptions } from './ProjectPicker';
+import type { CategoryOption } from '../projects/categoryFilter';
 import { ApiLinkEditor } from './ApiLinkEditor';
 
 export function ApiLinks({
   store,
+  options,
+  categories = [],
   filter,
   memory,
   onReset,
 }: {
   store: LinkStore;
+  options?: LinkProjectOptions;
+  categories?: readonly CategoryOption[];
   filter: LinkFilter;
   memory?: LinkMemory;
   onReset?: () => void;
@@ -50,7 +57,11 @@ export function ApiLinks({
     activeList.current === list &&
     !store.transport.lifecycle.signal.aborted &&
     store.transport.generation === store.transport.lifecycle.generation;
-  const filtered = filter.scope !== 'all' || !!filter.query;
+  const filtered =
+    filter.category !== 'all' ||
+    !!filter.query ||
+    !!filter.projectId ||
+    (!!filter.projectStatus && filter.projectStatus !== 'all');
   const reviewDelete = async (id: string) => {
     setDeleteReview({ id });
     const detail = store.detail(id);
@@ -72,7 +83,12 @@ export function ApiLinks({
     direction?: -1 | 1,
     reviewed?: ApiLink,
   ) => {
-    if (pending.current || !state.data) return;
+    if (
+      pending.current ||
+      !state.data ||
+      (operation === 'move' && (filtered || state.stale || state.status !== 'ready'))
+    )
+      return;
     if (operation === 'delete' && deleteReview?.id === id && !reviewed) {
       await reviewDelete(id);
       return;
@@ -150,34 +166,63 @@ export function ApiLinks({
   };
   return (
     <>
-      {memory && (
-        <Button
-          ref={add}
-          disabled={busy}
-          onClick={() => {
-            memory.editor = { draft: linkDraft() };
-            setEditing(true);
-          }}
-        >
-          링크 추가
-        </Button>
-      )}
-      <div className={memory ? 'content-panel' : undefined}>
+      <div className={memory ? 'content-panel library-page-content' : undefined}>
         {memory && (
-          <div className="panel-heading">
-            <h2>개발 레퍼런스</h2>
-            <p>공식 문서와 개발 도구를 모아 두었어요.</p>
+          <div className="panel-heading library-header">
+            <div>
+              <h2>개발 레퍼런스</h2>
+              <p>공식 문서와 개발 도구를 모아 두었어요.</p>
+            </div>
+            <Button
+              ref={add}
+              variant="primary"
+              disabled={busy}
+              onClick={() => {
+                memory.editor = { draft: linkDraft() };
+                setEditing(true);
+              }}
+            >
+              <Plus size={16} />
+              링크 추가
+            </Button>
           </div>
         )}
-        {filter.query && state.status === 'ready' && (
-          <p role="status">검색 결과 {state.data?.total}개</p>
-        )}
-        {memory && (
-          <p className="muted">
-            공통 링크는 모든 분야에 표시됩니다. 순서 변경은 검색·분야를 초기화한 전체 목록에서 할 수
-            있어요.
-          </p>
-        )}
+        <div className={memory ? 'library-toolbar' : undefined}>
+          <div>
+            {filter.query && state.status === 'ready' && (
+              <p role="status">검색 결과 {state.data?.total}개</p>
+            )}
+            {memory && (
+              <p className="muted">
+                연결 없는 링크는 미분류에 표시됩니다. 순서 변경은 검색·필터를 초기화한 전체 목록에서
+                할 수 있어요.
+              </p>
+            )}
+          </div>
+          {(memory || state.status === 'error') && (
+            <div className="library-toolbar-actions">
+              <Button
+                variant="secondary"
+                disabled={busy || state.status === 'loading'}
+                onClick={() => {
+                  setNotice('');
+                  list.invalidate();
+                }}
+              >
+                <RefreshCw size={14} />
+                링크 새로고침
+              </Button>
+              {memory &&
+                onReset &&
+                (filtered || (state.status === 'ready' && !state.data!.items.length)) && (
+                  <Button onClick={onReset}>
+                    <RotateCcw size={14} />
+                    검색·필터 초기화
+                  </Button>
+                )}
+            </div>
+          )}
+        </div>
         {(state.status === 'idle' || state.status === 'loading') && (
           <p role="status">링크를 불러오는 중…</p>
         )}
@@ -196,7 +241,8 @@ export function ApiLinks({
               <>
                 <p>
                   삭제 전 최신 내용: {deleteReview.latest.label} · {deleteReview.latest.url} ·{' '}
-                  {deleteReview.latest.description} · {deleteReview.latest.scope}
+                  {deleteReview.latest.description} ·{' '}
+                  {deleteReview.latest.projectName ?? '연결 없음'}
                 </p>
                 <Button
                   variant="danger"
@@ -219,36 +265,23 @@ export function ApiLinks({
             링크를 불러오지 못했습니다. {state.data && '이전에 확인한 목록입니다.'}
           </p>
         )}
-        {(memory || state.status === 'error') && (
-          <Button
-            disabled={busy || state.status === 'loading'}
-            onClick={() => {
-              setNotice('');
-              list.invalidate();
-            }}
-          >
-            링크 새로고침
-          </Button>
-        )}
         {state.status === 'ready' && !state.data!.items.length && (
           <EmptyState
             title={filtered ? '검색 조건에 맞는 링크가 없어요' : '등록된 링크가 없어요'}
-            onReset={onReset}
-          >
-            {memory && (
-              <Button
-                onClick={() => {
-                  memory.editor = { draft: linkDraft() };
-                  setEditing(true);
-                }}
-              >
-                링크 추가
-              </Button>
-            )}
-          </EmptyState>
+            onReset={memory ? undefined : onReset}
+          />
         )}
         <LinkRows
-          links={(state.data?.items ?? []).map((l) => ({ ...l, desc: l.description }))}
+          links={(state.data?.items ?? []).map((l) => ({
+            ...l,
+            desc: l.description,
+            classification:
+              l.projectId === null
+                ? '연결 없음'
+                : l.categoryId === null
+                  ? `${l.projectName} · 미분류`
+                  : `${l.projectName} · ${categories.find((c) => c.id === l.categoryId)?.name ?? '개발 분야 확인 중'}`,
+          }))}
           filtered={filtered || state.stale || state.status !== 'ready'}
           disabled={busy}
           iconKey={(l) => linkIcon(l.url)}
@@ -257,9 +290,10 @@ export function ApiLinks({
           onRemove={(l) => void run('delete', l.id)}
         />
       </div>
-      {editing && memory?.editor && (
+      {editing && memory?.editor && options && (
         <ApiLinkEditor
           store={store}
+          options={options}
           memory={memory}
           onClose={() => {
             setEditing(false);

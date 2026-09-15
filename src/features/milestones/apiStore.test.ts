@@ -10,12 +10,12 @@ const dto = (changes: Record<string, unknown> = {}) => ({
   title: '목표',
   projectId: '00000000-0000-0000-0000-000000000001',
   projectName: '프로젝트',
-  scope: 'unity',
+  categoryId: null,
   dueDate: null,
   completed: false,
   ...changes,
 });
-const filter = { scope: 'all', projectStatus: 'all', status: 'open', limit: 2 } as const;
+const filter = { category: 'all', projectStatus: 'all', status: 'open', limit: 2 } as const;
 function make(fetcher: typeof fetch) {
   const lifecycle = new Lifecycle();
   return new MilestoneStore({
@@ -99,7 +99,7 @@ describe('Milestone reads and mutations', () => {
       return Response.json({ deletedId: id.replace('010', '011') });
     });
     await expect(store.mutate('delete', { id, revision: 7 })).rejects.toThrow();
-    expect(path).toBe('/api/v1/milestones/' + id + '?revision=7');
+    expect(path).toBe('/api/v2/milestones/' + id + '?revision=7');
     expect(body).toBeUndefined();
   });
   it('requires advancing returned revision and keeps equal revision Project presentation fresh', async () => {

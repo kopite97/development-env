@@ -1,5 +1,5 @@
 import type { ApiDashboard, DashboardSave } from './apiModel';
-import type { Widget } from './model';
+import type { Widget } from './apiModel';
 export type WidgetForm = Omit<Widget, 'limit'> & { limitText: string };
 export type DashboardEditorMemory = {
   baseline: ApiDashboard;

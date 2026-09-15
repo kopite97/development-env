@@ -7,17 +7,17 @@ import type {
   MilestoneProjectOptionsPage,
 } from '../../features/milestones/projectOptions';
 
-function option(project: { id: string; name: string; scope: 'unity' | 'server'; status: string }) {
+function option(project: { id: string; name: string; categoryId: string | null; status: string }) {
   return {
     id: project.id,
     name: project.name,
-    scope: project.scope,
+    categoryId: project.categoryId,
     archived: project.status === 'archived',
   } satisfies MilestoneProjectOption;
 }
 
 export function milestoneProjectOptions(projects: ProjectStore): MilestoneProjectOptions {
-  const allFilter = { scope: 'all', status: 'all', query: '' } as const;
+  const allFilter = { category: 'all', status: 'all', query: '' } as const;
   const allSource = projects.list(allFilter);
   const read = (source: typeof allSource): MilestoneProjectOptionsPage => {
     const state = source.getSnapshot();

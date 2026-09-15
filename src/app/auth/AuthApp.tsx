@@ -1,4 +1,6 @@
 import { dashboardHandoff } from './dashboardHandoff';
+import { CodeXml } from 'lucide-react';
+import { LoginWorkflow } from './LoginWorkflow';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AuthSession } from './session';
 import { connectAuthHints } from './crossTab';
@@ -26,11 +28,12 @@ export function AuthApp() {
   const historyIndex = useRef(0);
   const restoringHistory = useRef(false);
   const handleNavigate = (path: string, replace = false) => {
-    if (path === window.location.pathname + window.location.search) return;
+    if (path === window.location.pathname + window.location.search) return true;
     if (
       !confirmNavigation(
         Boolean(
           getProjectMemory().editor ||
+          getProjectMemory().category ||
           getTaskMemory().editor ||
           getJournalMemory().editor ||
           getMilestoneMemory().editor ||
@@ -41,8 +44,9 @@ export function AuthApp() {
         'Discard this draft? An unconfirmed creation may already exist. Review Projects before creating again.',
       )
     )
-      return;
+      return false;
     getProjectMemory().editor = undefined;
+    getProjectMemory().category = undefined;
     getTaskMemory().editor = undefined;
     getJournalMemory().editor = undefined;
     getMilestoneMemory().editor = undefined;
@@ -54,8 +58,9 @@ export function AuthApp() {
     else window.history.pushState({ projectNavigationIndex: ++historyIndex.current }, '', path);
     locationRef.current = new URL(window.location.href);
     setUrl(locationRef.current);
+    return true;
   };
-  const { state, busy, notice, logoutBlocked } = useSyncExternalStore(
+  const { state, busy, notice, logoutBlocked, sessionCheck } = useSyncExternalStore(
     session.subscribe,
     session.getSnapshot,
   );
@@ -89,6 +94,7 @@ export function AuthApp() {
         !confirmNavigation(
           Boolean(
             getProjectMemory().editor ||
+            getProjectMemory().category ||
             getTaskMemory().editor ||
             getJournalMemory().editor ||
             getMilestoneMemory().editor ||
@@ -112,6 +118,7 @@ export function AuthApp() {
         return;
       }
       getProjectMemory().editor = undefined;
+      getProjectMemory().category = undefined;
       getTaskMemory().editor = undefined;
       getJournalMemory().editor = undefined;
       getMilestoneMemory().editor = undefined;
@@ -121,7 +128,7 @@ export function AuthApp() {
       historyIndex.current = next;
       locationRef.current = new URL(window.location.href);
       setUrl(locationRef.current);
-      session.resume(true);
+      session.resume();
     };
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleFocus);
@@ -140,133 +147,119 @@ export function AuthApp() {
   }, [intent]);
   const handleLogin = () =>
     session.login(() => window.location.assign(loginUrl(intent.url.pathname + intent.url.search)));
-  const taskScreen =
-    state.kind === 'authenticated' && ['/', '/tasks', '/library'].includes(url.pathname) && !busy;
-  return (
-    <div
-      className={taskScreen ? 'authenticated-task-screen' : 'auth-app'}
-      aria-labelledby={taskScreen ? undefined : 'auth-title'}
-    >
-      <header className="auth-header" hidden={taskScreen}>
-        <a
-          href="/"
-          className="auth-brand"
-          onClick={(event) => {
-            if (state.kind === 'authenticated' && !event.ctrlKey && !event.metaKey) {
-              event.preventDefault();
-              handleNavigate('/');
-            }
-          }}
+  if (state.kind === 'authenticated') {
+    const sessionControls = (
+      <div className="session-controls">
+        {notice && <p role="alert">{notice}</p>}
+        <button
+          className="button button-secondary"
+          type="button"
+          disabled={busy || logoutBlocked}
+          onClick={() => void session.logout()}
         >
-          <h1 id="auth-title">Devspace</h1>
-        </a>
-        <span>Your personal workspace</span>
-      </header>
-      {state.kind === 'checking' && (
-        <section className="auth-card">
-          <p role="status">Checking your session…</p>
-        </section>
-      )}
-      {state.kind === 'unauthenticated' && (
-        <section className="auth-card">
-          <h2>Sign in to your workspace</h2>
-          <p>Continue with Google to access your personal workspace.</p>
-          {intent.failed && <p role="alert">Google sign-in failed. Please try again.</p>}
-          <button type="button" disabled={busy} onClick={handleLogin}>
-            Continue with Google
-          </button>
-        </section>
-      )}
-      {state.kind === 'disabled' && (
-        <section className="auth-card">
-          <h2>Account disabled</h2>
-          <p role="alert">
-            This account cannot access Devspace. Contact your administrator for help.
-          </p>
-        </section>
-      )}
-      {state.kind === 'bootstrap-error' && (
-        <section className="auth-card">
-          <h2>Connection problem</h2>
-          <p role="alert">{state.message}</p>
-          {state.requestId && <p>Request ID: {state.requestId}</p>}
-          <button onClick={() => void session.verify()}>Retry</button>
-        </section>
-      )}
-      {state.kind === 'authenticated' && (
-        <section
-          key={`${state.identity.id}:${state.identity.workspace.id}:${state.generation}`}
-          className={taskScreen ? 'task-workspace' : 'auth-card'}
-          aria-label={state.identity.displayName + ' · ' + state.identity.workspace.name}
-        >
-          <div className="auth-identity" hidden={taskScreen}>
-            <span className="auth-avatar" aria-hidden="true">
-              {Array.from(state.identity.displayName)[0]}
-            </span>
-            <div>
-              <h2>{state.identity.displayName}</h2>
-              <p>{state.identity.workspace.name}</p>
-            </div>
-          </div>
-          <nav
-            hidden={taskScreen}
-            aria-label="Workspace"
-            onClick={(event) => {
-              const target = event.target;
-              if (
-                target instanceof HTMLAnchorElement &&
-                !event.ctrlKey &&
-                !event.metaKey &&
-                !event.shiftKey &&
-                !event.altKey
-              ) {
-                event.preventDefault();
-                handleNavigate(target.pathname);
-              }
+          {busy ? 'Logging out…' : notice ? 'Retry logout' : 'Log out'}
+        </button>
+      </div>
+    );
+    return (
+      <section
+        key={`${state.identity.id}:${state.identity.workspace.id}:${state.generation}`}
+        className="authenticated-workspace"
+        aria-label={state.identity.displayName + ' · ' + state.identity.workspace.name}
+      >
+        {busy ? (
+          <div className="auth-app">{sessionControls}</div>
+        ) : (
+          <PrivateWorkspace
+            transport={{
+              request: session.request,
+              lifecycle: session.lifecycle,
+              generation: state.generation,
+              recoverSecurity: session.recoverMutationSecurity,
             }}
-          >
-            <a href="/">Home</a>
-            <a href="/projects">Projects</a>
-            <a href="/tasks">Tasks</a>
-            <a href="/journals">Journals</a>
-            <a href="/library">Library</a>
-          </nav>
-          {!busy && (
-            <PrivateWorkspace
-              transport={{
-                request: session.request,
-                lifecycle: session.lifecycle,
-                generation: state.generation,
-                recoverSecurity: session.recoverMutationSecurity,
-              }}
-              url={url}
-              onNavigate={handleNavigate}
-              memory={getProjectMemory()}
-              taskMemory={getTaskMemory()}
-              journalMemory={getJournalMemory()}
-              milestoneMemory={getMilestoneMemory()}
-              linkMemory={getLinkMemory()}
-              dashboardMemory={getDashboardMemory()}
-              avatar={Array.from(state.identity.displayName)[0] ?? ''}
-            />
-          )}
-          {notice && <p role="alert">{notice}</p>}
-          <button
-            className={
-              taskScreen
-                ? url.pathname === '/'
-                  ? 'dashboard-session-logout button button-secondary'
-                  : 'task-session-logout button'
-                : undefined
+            url={url}
+            onNavigate={handleNavigate}
+            memory={getProjectMemory()}
+            taskMemory={getTaskMemory()}
+            journalMemory={getJournalMemory()}
+            milestoneMemory={getMilestoneMemory()}
+            linkMemory={getLinkMemory()}
+            dashboardMemory={getDashboardMemory()}
+            displayName={state.identity.displayName}
+            workspaceName={state.identity.workspace.name}
+            sessionControls={sessionControls}
+            sessionNotice={
+              sessionCheck === 'failed' && (
+                <div className="session-check-notice" role="alert">
+                  <span>
+                    세션을 확인하지 못했습니다. 연결을 확인해 주세요. 저장은 확인 후 다시 시도할 수
+                    있습니다.
+                  </span>
+                  <button
+                    className="button button-secondary"
+                    onClick={() => void session.revalidate()}
+                  >
+                    세션 다시 확인
+                  </button>
+                </div>
+              )
             }
-            type="button"
-            disabled={busy || logoutBlocked}
-            onClick={() => void session.logout()}
-          >
-            {busy ? 'Logging out…' : notice ? 'Retry logout' : 'Log out'}
-          </button>
-        </section>
-      )}
+          />
+        )}
+      </section>
+    );
+  }
+  return (
+    <div className="auth-app auth-login-shell" aria-labelledby="auth-title">
+      <LoginWorkflow />
+      <div className="auth-login-panel">
+        <header className="auth-header">
+          <div className="auth-brand">
+            <CodeXml className="auth-logo" size={64} strokeWidth={2} aria-hidden="true" />
+            <h1 id="auth-title">devspace.</h1>
+          </div>
+        </header>
+        {state.kind === 'checking' && (
+          <section className="auth-card">
+            <p role="status">로그인 정보를 확인하고 있어요…</p>
+          </section>
+        )}
+        {state.kind === 'unauthenticated' && (
+          <section className="auth-card">
+            <h2>로그인하여 계속하세요</h2>
+            {intent.failed && <p role="alert">Google 로그인에 실패했습니다. 다시 시도해 주세요.</p>}
+            <button
+              className="auth-google-button"
+              type="button"
+              disabled={busy}
+              onClick={handleLogin}
+            >
+              <img
+                src="https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png"
+                width={24}
+                height={24}
+                alt=""
+              />
+              {busy ? 'Google로 이동 중…' : 'Google로 계속하기'}
+            </button>
+          </section>
+        )}
+        {state.kind === 'disabled' && (
+          <section className="auth-card">
+            <h2>이용이 제한된 계정입니다</h2>
+            <p role="alert">
+              이 계정으로는 devspace.를 이용할 수 없습니다. 관리자에게 문의해 주세요.
+            </p>
+          </section>
+        )}
+        {state.kind === 'bootstrap-error' && (
+          <section className="auth-card">
+            <h2>연결을 확인해 주세요</h2>
+            <p role="alert">{state.message}</p>
+            {state.requestId && <p>Request ID: {state.requestId}</p>}
+          </section>
+        )}
+      </div>
     </div>
   );
 }

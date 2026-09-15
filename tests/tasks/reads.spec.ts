@@ -6,7 +6,7 @@ const task = (n: number, status = 'todo') => ({
   title: 'Task ' + n,
   projectId: id(99),
   projectName: 'Server Project',
-  scope: 'unity',
+  categoryId: null,
   status,
   priority: 'normal',
   tag: 'API',
@@ -27,14 +27,25 @@ test('preserves shell, independent columns, failed later page, trash and indepen
         },
       });
   });
-  await page.route('**/api/v1/**', (route) => {
+  await page.route('**/api/**', (route) => {
     const u = new URL(route.request().url());
     if (u.pathname === '/api/v1/me') return route.fulfill({ json: identity });
-    if (u.pathname === '/api/v1/overview') return route.fulfill({ json: overview() });
+    if (u.pathname === '/api/v1/project-categories')
+      return route.fulfill({ json: { items: [], total: 0 } });
+    if (u.pathname === '/api/v2/projects')
+      return route.fulfill({ json: { items: [], total: 0, nextCursor: null } });
+    if (u.pathname === '/api/v2/projects/category-counts')
+      return route.fulfill({
+        json: {
+          items: [{ categoryId: null, active: 0, archived: 0 }],
+          totals: { active: 0, archived: 0 },
+        },
+      });
+    if (u.pathname === '/api/v2/overview') return route.fulfill({ json: overview() });
     excluded.push(u.pathname);
     return route.abort();
   });
-  await page.route('**/api/v1/tasks/stats?*', (route) => {
+  await page.route('**/api/v2/tasks/stats?*', (route) => {
     const p = new URL(route.request().url()).searchParams;
     expect(p.has('status') || p.has('deleted') || p.has('limit')).toBe(false);
     return route.fulfill({
@@ -42,7 +53,7 @@ test('preserves shell, independent columns, failed later page, trash and indepen
     });
   });
   let fail = true;
-  await page.route('**/api/v1/tasks?*', (route) => {
+  await page.route('**/api/v2/tasks?*', (route) => {
     const p = new URL(route.request().url()).searchParams;
     expect(p.get('projectStatus')).toBe('all');
     if (p.get('deleted') === 'true') {

@@ -1,3 +1,4 @@
+import type { CategoryFilter } from '../features/projects/categoryFilter';
 import { WidgetFrame } from '../features/dashboard/WidgetFrame';
 import { ApiMilestoneList } from '../features/milestones/ApiMilestoneList';
 import type { MilestoneStore } from '../features/milestones/apiStore';
@@ -9,7 +10,7 @@ export function ServerMilestoneHome({
   memory,
   onNavigate,
   limit = 2,
-  scope = 'unity',
+  category = 'all',
   projectId,
 }: {
   store: MilestoneStore;
@@ -17,7 +18,7 @@ export function ServerMilestoneHome({
   memory: MilestoneMemory;
   onNavigate: (path: string) => void;
   limit?: number;
-  scope?: 'all' | 'unity' | 'server';
+  category?: CategoryFilter;
   projectId?: string;
 }) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 20)
@@ -29,7 +30,6 @@ export function ServerMilestoneHome({
           id: 'server-milestones',
           type: 'milestone',
           title: '다가오는 마일스톤',
-          scope,
           size: 'small',
         }}
         editing={false}
@@ -46,7 +46,7 @@ export function ServerMilestoneHome({
           store={store}
           options={options}
           memory={memory}
-          scope={scope}
+          category={category}
           projectId={projectId}
           limit={limit}
           readOnly

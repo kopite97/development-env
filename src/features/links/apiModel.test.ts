@@ -10,7 +10,9 @@ const dto = {
   label: 'GitHub',
   description: '  keep  ',
   url: 'https://github.com',
-  scope: 'all' as const,
+  projectId: null,
+  projectName: null,
+  categoryId: null,
 };
 describe('Link boundary', () => {
   it('separates drafts and server authority while preserving description', () => {
@@ -18,7 +20,7 @@ describe('Link boundary', () => {
       label: 'GitHub',
       description: '  keep  ',
       url: 'https://github.com',
-      scope: 'all',
+      projectId: null,
     });
     expect(patchBody(dto, { ...dto, label: 'changed' })).toEqual({ revision: 1, label: 'changed' });
     expect(linkIcon(dto.url)).toBe('github');
@@ -31,7 +33,7 @@ describe('Link boundary', () => {
       { revision: Number.MAX_SAFE_INTEGER + 1 },
       { position: -1 },
       { createdAt: 'today' },
-      { scope: 'common' },
+      { projectId: 'common' },
       { url: 'javascript:alert(1)' },
       { url: 'https://u:p@example.com' },
       { description: null },

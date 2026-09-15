@@ -1,6 +1,8 @@
 import { validateLinks } from './links.mjs';
 import { validateDashboard } from './dashboard.mjs';
 import { validateProjects } from './projects.mjs';
+import { validateCategories } from './categories.mjs';
+import { validateCategoryOnly } from './category-only.mjs';
 import { validateTasks } from './tasks.mjs';
 import { validateJournals } from './journals.mjs';
 import { validateMilestones } from './milestones.mjs';
@@ -23,11 +25,25 @@ const backend = backendCandidates.find((candidate) =>
 );
 if (!backend) throw new Error('No sibling backend checkout with gradlew.bat was found.');
 const phase = process.argv.find((arg) => arg.startsWith('--projects='))?.split('=')[1];
+const categoryPhase = process.argv.includes('--categories');
+const categoryOnlyPhase = process.argv.includes('--category-only');
 const taskPhase = process.argv.find((arg) => arg.startsWith('--tasks='))?.split('=')[1];
 const journalPhase = process.argv.find((arg) => arg.startsWith('--journals='))?.split('=')[1];
 const milestonePhase = process.argv.find((arg) => arg.startsWith('--milestones='))?.split('=')[1];
 const linkPhase = process.argv.find((arg) => arg.startsWith('--links='))?.split('=')[1];
 const dashboardPhase = process.argv.find((arg) => arg.startsWith('--dashboard='))?.split('=')[1];
+if (
+  phase ||
+  categoryPhase ||
+  taskPhase ||
+  journalPhase ||
+  milestonePhase ||
+  linkPhase ||
+  dashboardPhase
+)
+  throw new Error(
+    'Historical feature phases target the retired v1 contract. Use --category-only for the coordinated v2 acceptance suite.',
+  );
 const nginx = process.argv.includes('--nginx');
 const origin = nginx ? 'http://127.0.0.1:4177' : 'http://127.0.0.1:4175';
 const output = path.join(root, '.auth-validation', nginx ? 'nginx' : 'vite');
@@ -88,6 +104,13 @@ try {
     SPRING_PROFILES_ACTIVE: 'test',
     SERVER_PORT: '18080',
     SPRING_CONFIG_IMPORT: 'optional:file:./plan0009-no-env.properties',
+    // bootTestRun owns a new empty Testcontainer, never the local workspace DB.
+    // Do not inherit a production cutover manifest imported by application.yml.
+    SPRING_APPLICATION_JSON: JSON.stringify({
+      'spring.flyway.init-sqls': [
+        "select set_config('devspace.category_cutover_manifest','',false)",
+      ],
+    }),
     APP_ORIGIN: origin,
     SESSION_COOKIE_SECURE: 'false',
     OIDC_GOOGLE_CLIENT_ID: 'test-google-client',
@@ -193,7 +216,7 @@ try {
     const url = new URL(request.url());
     if (
       url.pathname.startsWith('/api/') &&
-      !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$)/.test(
+      !/^\/api\/(?:v1\/(?:me$|auth\/|project-categories(?:\/|$))|v2\/(?:projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$))/.test(
         url.pathname,
       )
     )
@@ -205,17 +228,22 @@ try {
     assert(response.status() >= 400 || response.status() === 302);
     assert(!(response.headers()['content-type'] ?? '').includes('text/html'));
   }
-  await page.goto(origin + '/projects/example?scope=all&q=hello');
+  const loginDestination = categoryOnlyPhase
+    ? '/projects?category=uncategorized&q=hello'
+    : '/projects/example?scope=all&q=hello';
+  await page.goto(origin + loginDestination);
   assert.equal(await page.title(), 'Devspace — 나만의 개발 작업실');
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await page.getByRole('link', { name: 'alice', exact: true }).click();
-  await page.waitForURL(origin + '/projects/example?scope=all&q=hello');
+  await page.waitForURL(origin + loginDestination);
+  if (categoryOnlyPhase)
+    await expect(page.getByLabel('개발 분야 필터', { exact: true })).toHaveValue('uncategorized');
   const me = await context.request.get(origin + '/api/v1/me');
   assert.equal(me.status(), 200);
   const alice = await me.json();
   assert.equal(alice.displayName, 'Alice Example');
   assert.equal(alice.workspace.revision, 1);
-  await expect(page.getByRole('heading', { name: 'Alice Example', exact: true })).toBeVisible();
+  await expect(page.locator('.sidebar .profile strong')).toHaveText('Alice Example');
   await page.screenshot({ path: path.join(output, 'authenticated-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -275,7 +303,35 @@ try {
     'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)+(select count(*) from dashboards)',
   );
   assert.equal(counts, '0');
+  await page.waitForLoadState('networkidle');
+  const retainedShell = await page.locator('.app-shell').elementHandle();
+  assert(retainedShell);
+  const focusReads = [];
+  const observeFocus = (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith('/api/')) focusReads.push(url.pathname);
+  };
+  page.on('request', observeFocus);
+  const verifiedFocus = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/v1/me',
+  );
+  await page.evaluate(() => {
+    const now = Date.now();
+    Date.now = () => now + 31_000;
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  assert.equal((await verifiedFocus).status(), 200);
+  await page.waitForLoadState('networkidle');
+  assert(await retainedShell.evaluate((node) => node.isConnected));
+  assert.deepEqual(focusReads, ['/api/v1/me']);
+  page.off('request', observeFocus);
+  console.log(
+    'Real focus verification preserves the application DOM and feature stores without business refetch.',
+  );
   if (phase) await validateProjects({ page, context, origin, sql, alice, output, phase });
+  if (categoryPhase) await validateCategories({ page, context, origin, sql, alice, output });
+  if (categoryOnlyPhase) await validateCategoryOnly({ page, context, origin, sql, alice, output });
   if (taskPhase)
     await validateTasks({ page, context, origin, sql, alice, output, phase: taskPhase });
   if (journalPhase)
@@ -285,6 +341,9 @@ try {
   if (milestonePhase)
     await validateMilestones({ page, context, origin, sql, alice, output, phase: milestonePhase });
   if (dashboardPhase) await validateDashboard({ page, context, origin, sql, alice, output });
+  const businessRowsBeforeAuth = sql(
+    'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)+(select count(*) from dashboards)',
+  );
   const csrf = await context.request.get(origin + '/api/v1/auth/csrf');
   assert.equal(csrf.status(), 200);
   const token = (await csrf.json()).csrfToken;
@@ -313,7 +372,10 @@ try {
   await page.goto(origin);
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await page.getByRole('link', { name: 'bob', exact: true }).click();
-  await expect(page.locator('.task-workspace')).toHaveAttribute('aria-label', /^Bob Example · /);
+  await expect(page.locator('.authenticated-workspace')).toHaveAttribute(
+    'aria-label',
+    /^Bob Example · /,
+  );
   const bob = await (await context.request.get(origin + '/api/v1/me')).json();
   assert.notEqual(bob.id, alice.id);
   assert.notEqual(bob.workspace.id, alice.workspace.id);
@@ -362,7 +424,7 @@ try {
     sql(
       'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)+(select count(*) from dashboards)',
     ),
-    '0',
+    businessRowsBeforeAuth,
   );
   assert.equal(provider.stats.pkce, 3);
   assert.equal(excluded.length, 0);
@@ -381,7 +443,7 @@ try {
         boundary: nginx ? 'nginx' : 'vite',
         passed: true,
         protocol: provider.stats,
-        businessRows: 0,
+        businessRows: Number(businessRowsBeforeAuth),
         excludedRequests: 0,
       },
       null,
@@ -389,7 +451,7 @@ try {
     ),
   );
   console.log(
-    'Real session/proxy smoke passed: callback, PKCE, reload, CSRF, Origin, logout, zero business rows.',
+    'Real session/proxy smoke passed: callback, PKCE, reload, CSRF, Origin, logout, no authentication-created business rows.',
   );
 } finally {
   await browser?.close();

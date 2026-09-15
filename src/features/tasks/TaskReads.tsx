@@ -100,9 +100,9 @@ export function TaskColumns({
         stats.data?.total === 0 &&
         states.every((state) => state.status === 'ready') && (
           <EmptyState
-            onReset={filter.query || filter.scope !== 'all' ? actions?.reset : undefined}
+            onReset={filter.query || filter.category !== 'all' ? actions?.reset : undefined}
             title={
-              filter.query || filter.scope !== 'all'
+              filter.query || filter.category !== 'all'
                 ? '검색 조건에 맞는 태스크가 없어요'
                 : '태스크가 없어요'
             }
@@ -115,7 +115,6 @@ export function TaskColumns({
         )}
       {filter.query && stats.data && <p role="status">검색 결과 {stats.data.total}개</p>}
       <TaskBoard
-        scope={filter.scope}
         tasks={states.flatMap((state) => state.data?.items ?? []).map(taskPresentation)}
         columns={columns}
         pending={actions?.pending}
@@ -231,7 +230,6 @@ function TaskBudget({
       <TaskReadState state={state} query={list} />
       <TaskReadState state={stats} query={store.stats(filter)} />
       <TaskBoard
-        scope={filter.scope}
         tasks={(state.data?.items ?? []).map(taskPresentation)}
         columns={Object.fromEntries(
           (['todo', 'doing', 'done'] as const).map((status) => [

@@ -7,30 +7,40 @@ const milestone = (n = 1, extra: Record<string, unknown> = {}) => ({
   title: '목표 ' + n,
   projectId: id(1),
   projectName: 'Project 1',
-  scope: 'unity',
+  categoryId: null,
   dueDate: null,
   completed: false,
   ...extra,
 });
-test('Project rename and scope mutation refresh equal-revision Milestone presentation', async ({
+test('Project rename and Category mutation refresh equal-revision Milestone presentation', async ({
   page,
 }) => {
   await setup(page);
-  let owner = project(1);
+  const category = {
+    id: id(900),
+    name: '플랫폼',
+    revision: 1,
+    createdAt: '2026-09-15T00:00:00Z',
+    updatedAt: '2026-09-15T00:00:00Z',
+  };
+  await page.route('**/api/v1/project-categories', (r) =>
+    r.fulfill({ json: { items: [category], total: 1 } }),
+  );
+  let owner = { ...project(1), categoryId: null as string | null };
   let reads = 0;
-  await page.route('**/api/v1/projects/' + id(1), (r) => {
+  await page.route('**/api/v2/projects/' + id(1), (r) => {
     if (r.request().method() === 'PATCH')
       owner = { ...owner, ...r.request().postDataJSON(), revision: owner.revision + 1 };
     return r.fulfill({ json: owner });
   });
-  await page.route('**/api/v1/projects?*', (r) =>
+  await page.route('**/api/v2/projects?*', (r) =>
     r.fulfill({ json: { items: [owner], total: 1, nextCursor: null } }),
   );
-  await page.route('**/api/v1/milestones?*', (r) => {
+  await page.route('**/api/v2/milestones?*', (r) => {
     reads++;
     return r.fulfill({
       json: {
-        items: [milestone(1, { projectName: owner.name, scope: owner.scope })],
+        items: [milestone(1, { projectName: owner.name, categoryId: owner.categoryId })],
         total: 1,
         nextCursor: null,
       },
@@ -38,25 +48,26 @@ test('Project rename and scope mutation refresh equal-revision Milestone present
   });
   await page.goto('/projects/' + id(1));
   await expect(page.locator('.milestone small')).toHaveText('Project 1');
-  await page.getByRole('button', { name: 'Edit Project', exact: true }).click();
-  await page.getByLabel('Name', { exact: true }).fill('Renamed Project');
-  await page.getByLabel('Project scope').selectOption('server');
-  await page.getByRole('button', { name: 'Save Project', exact: true }).click();
+  await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
+  await page.getByLabel('프로젝트 이름', { exact: true }).fill('Renamed Project');
+  await page.getByLabel('개발 분야', { exact: true }).selectOption(category.id);
+  await page.getByRole('button', { name: '프로젝트 저장', exact: true }).click();
   await expect(page.locator('.milestone small')).toHaveText('Renamed Project');
   expect(reads).toBeGreaterThan(1);
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: 'Archive Project', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Unarchive Project', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
+  await page.getByRole('button', { name: '프로젝트 보관', exact: true }).click();
+  await expect(page.locator('.project-summary')).toContainText('보관됨');
   await expect(page.getByRole('button', { name: '마일스톤 추가', exact: true })).toBeEnabled();
 });
 test('server status, cursor retry and detail outside loaded Project options', async ({ page }) => {
   await setup(page);
   const requests: string[] = [];
   let fail = true;
-  await page.route('**/api/v1/projects?*', (r) =>
+  await page.route('**/api/v2/projects?*', (r) =>
     r.fulfill({ json: { items: [project(2)], total: 2, nextCursor: 'more-projects' } }),
   );
-  await page.route('**/api/v1/milestones?*', (r) => {
+  await page.route('**/api/v2/milestones?*', (r) => {
     const u = new URL(r.request().url());
     requests.push(u.search);
     if (u.searchParams.has('cursor') && fail) {
@@ -71,7 +82,7 @@ test('server status, cursor retry and detail outside loaded Project options', as
       },
     });
   });
-  await page.route('**/api/v1/milestones/' + id(301), (r) => r.fulfill({ json: milestone() }));
+  await page.route('**/api/v2/milestones/' + id(301), (r) => r.fulfill({ json: milestone() }));
   await page.goto('/projects/' + id(1));
   const region = page.getByRole('region', { name: '프로젝트 마일스톤' });
   await expect(region.locator('.milestone')).toHaveCount(1);
@@ -92,13 +103,13 @@ test('archived Project creation freezes idempotency and keeps draft through fail
   page,
 }) => {
   await setup(page);
-  await page.route('**/api/v1/projects/*', (r) => r.fulfill({ json: project(1, 'archived') }));
-  await page.route('**/api/v1/projects?*', (r) =>
+  await page.route('**/api/v2/projects/*', (r) => r.fulfill({ json: project(1, 'archived') }));
+  await page.route('**/api/v2/projects?*', (r) =>
     r.fulfill({ json: { items: [project(1, 'archived')], total: 1, nextCursor: null } }),
   );
   const writes: { key: string; body: unknown }[] = [];
   let reconcile = false;
-  await page.route('**/api/v1/milestones', (r) => {
+  await page.route('**/api/v2/milestones', (r) => {
     writes.push({
       key: r.request().headers()['idempotency-key'],
       body: r.request().postDataJSON(),
@@ -106,7 +117,7 @@ test('archived Project creation freezes idempotency and keeps draft through fail
     if (writes.length === 1) return r.abort('failed');
     return r.fulfill({ status: 201, json: milestone(1, { title: '보관 목표' }) });
   });
-  await page.route('**/api/v1/milestones/' + id(301), (r) =>
+  await page.route('**/api/v2/milestones/' + id(301), (r) =>
     reconcile
       ? r.fulfill({ json: milestone(1, { title: '보관 목표' }) })
       : r.fulfill({ status: 500, json: { code: 'INTERNAL_ERROR' } }),
@@ -141,18 +152,18 @@ test('dirty update conflict, archived reassignment, nullable date and permanent 
   let conflict = true;
   let deleted = false;
   const patches: unknown[] = [];
-  await page.route('**/api/v1/projects?*', (r) =>
+  await page.route('**/api/v2/projects?*', (r) =>
     r.fulfill({
       json: { items: [project(1), project(2, 'archived')], total: 2, nextCursor: null },
     }),
   );
-  await page.route('**/api/v1/projects/*', (r) =>
+  await page.route('**/api/v2/projects/*', (r) =>
     r.fulfill({ json: project(Number(r.request().url().slice(-1)), 'archived') }),
   );
-  await page.route('**/api/v1/milestones?*', (r) =>
+  await page.route('**/api/v2/milestones?*', (r) =>
     r.fulfill({ json: { items: deleted ? [] : [row], total: deleted ? 0 : 1, nextCursor: null } }),
   );
-  await page.route(/\/api\/v1\/milestones\/[0-9a-f-]+(?:\?.*)?$/, (r) => {
+  await page.route(/\/api\/v2\/milestones\/[0-9a-f-]+(?:\?.*)?$/, (r) => {
     const method = r.request().method();
     if (method === 'GET') return r.fulfill({ json: row });
     if (method === 'DELETE') {
@@ -195,14 +206,14 @@ test('complete and reopen use boolean PATCH and restore filter focus', async ({ 
   await setup(page);
   let row = milestone();
   const writes: unknown[] = [];
-  await page.route('**/api/v1/milestones?*', (r) => {
+  await page.route('**/api/v2/milestones?*', (r) => {
     const status = new URL(r.request().url()).searchParams.get('status');
     const visible = status === 'all' || row.completed === (status === 'done');
     return r.fulfill({
       json: { items: visible ? [row] : [], total: visible ? 1 : 0, nextCursor: null },
     });
   });
-  await page.route('**/api/v1/milestones/' + row.id, (r) => {
+  await page.route('**/api/v2/milestones/' + row.id, (r) => {
     if (r.request().method() === 'PATCH') {
       const body = r.request().postDataJSON();
       writes.push(body);
@@ -227,7 +238,7 @@ test('Home preserves bounded unity/open/two presentation and only navigates for 
 }) => {
   await setup(page);
   const requests: string[] = [];
-  await page.route('**/api/v1/milestones?*', (r) => {
+  await page.route('**/api/v2/milestones?*', (r) => {
     requests.push(r.request().url());
     return r.fulfill({
       json: { items: [milestone(1), milestone(2)], total: 3, nextCursor: 'more' },
@@ -239,7 +250,7 @@ test('Home preserves bounded unity/open/two presentation and only navigates for 
     '13px',
   );
   await expect(page.locator('.milestone')).toHaveCount(2);
-  expect(requests[0]).toContain('scope=unity');
+  expect(requests[0]).toContain('category=all');
   expect(requests[0]).toContain('status=open');
   expect(requests[0]).toContain('limit=2');
   await expect(page.locator('.milestones')).toContainText('3개 중 2개 표시');

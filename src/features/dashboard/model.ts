@@ -49,7 +49,7 @@ export function isLayout(value: unknown): value is Widget[] {
     new Set(value.map((w) => w.id)).size === value.length
   );
 }
-export function moveWidget(layout: Widget[], id: string, targetId: string) {
+export function moveWidget<T extends { id: string }>(layout: T[], id: string, targetId: string) {
   const from = layout.findIndex((w) => w.id === id),
     to = layout.findIndex((w) => w.id === targetId);
   if (from < 0 || to < 0 || from === to) return layout;

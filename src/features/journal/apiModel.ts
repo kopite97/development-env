@@ -1,4 +1,4 @@
-import { count, object, oneOf, string, timestamp, uuid } from '../../shared/http/validation';
+import { count, object, string, timestamp, uuid } from '../../shared/http/validation';
 
 export type ServerJournalId = string & { readonly serverJournalId: unique symbol };
 export type JournalScope = 'unity' | 'server';
@@ -14,7 +14,7 @@ export type ApiJournal = {
   title: string;
   projectId: string;
   projectName: string;
-  scope: JournalScope;
+  categoryId: string | null;
   body: string;
   entryDate: JournalDate;
 };
@@ -29,7 +29,7 @@ export type JournalDraft = {
 export type JournalProjectOption = {
   id: string;
   name: string;
-  scope: JournalScope;
+  categoryId: string | null;
   archived: boolean;
 };
 
@@ -38,7 +38,7 @@ export type JournalPresentation = {
   title: string;
   projectId: string;
   project: string;
-  scope: JournalScope;
+  categoryId: string | null;
   body: string;
   entryDate: string;
   createdAt: string;
@@ -79,7 +79,7 @@ export function parseJournal(value: unknown): ApiJournal {
     title,
     projectId: uuid(row.projectId),
     projectName: string(row.projectName),
-    scope: oneOf(row.scope, ['unity', 'server']),
+    categoryId: row.categoryId === null ? null : uuid(row.categoryId),
     body,
     entryDate: journalDate(row.entryDate),
   };
@@ -165,7 +165,7 @@ export function presentation(journal: ApiJournal): JournalPresentation {
     title: journal.title,
     projectId: journal.projectId,
     project: journal.projectName,
-    scope: journal.scope,
+    categoryId: journal.categoryId,
     body: journal.body,
     entryDate: journal.entryDate,
     createdAt: journal.createdAt,

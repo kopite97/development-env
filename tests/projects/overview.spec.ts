@@ -5,54 +5,59 @@ test('Overview is independent of pages, search and list failure; mutations inval
   await setup(page);
   let queries: URL[] = [],
     archived = false;
-  await page.route('**/api/v1/overview?*', (route) => {
+  await page.route('**/api/v2/overview?*', (route) => {
     const url = new URL(route.request().url());
     queries.push(url);
-    const data = overview(url.searchParams.get('scope')!, url.searchParams.get('projectId'));
+    const data = overview(url.searchParams.get('category')!, url.searchParams.get('projectId'));
     data.projects.archived = archived ? 3 : 2;
     return route.fulfill({ json: data });
   });
-  await page.route('**/api/v1/projects?*', (route) =>
+  await page.route('**/api/v2/projects?*', (route) =>
     route.request().url().includes('query=fail')
       ? route.fulfill({ status: 503, json: {} })
       : route.fulfill({ json: { items: [project(1)], total: 99, nextCursor: null } }),
   );
-  await page.route('**/api/v1/projects/' + id(1), (route) => {
+  await page.route('**/api/v2/projects/' + id(1), (route) => {
     if (route.request().method() === 'PATCH') archived = true;
     return route.fulfill({
       json: { ...project(1), revision: archived ? 2 : 1, status: archived ? 'archived' : 'active' },
     });
   });
   await page.goto('/projects');
-  await expect(page.getByText('99 matching Projects · 1 loaded rows')).toBeVisible();
-  const counters = page.getByRole('region', { name: 'Overview counters' });
-  await expect(counters.locator('dd').first()).toHaveText('24');
-  await page.getByLabel('Search Projects').fill('fail');
-  await expect(page.getByText('Projects could not be loaded.')).toBeVisible();
-  await expect(counters.locator('dd').first()).toHaveText('24');
+  await expect(page.locator('.project-row')).toHaveCount(1);
+  const counters = page.locator('.stats strong');
+  await expect(counters.first()).toHaveText('24개');
+  await page.getByLabel('현재 화면 검색').fill('fail');
+  await expect(page.getByText('프로젝트를 불러오지 못했습니다.')).toBeVisible();
+  await expect(counters.first()).toHaveText('24개');
   expect(queries).toHaveLength(1);
-  await page.goto('/projects/' + id(1) + '?scope=server&q=fail&archived=true');
-  await expect(page.getByRole('heading', { name: 'Project counters' })).toBeVisible();
-  expect(queries.at(-1)?.searchParams.get('scope')).toBe('all');
-  expect([...queries.at(-1)!.searchParams.keys()].sort()).toEqual(['projectId', 'scope']);
+  await page.goto('/projects/' + id(1) + '?category=uncategorized&q=fail&archived=true');
+  await expect(
+    page.getByRole('region', { name: '프로젝트 작업', exact: true }).locator('.panel-heading'),
+  ).toContainText('전체 10개');
+  expect(queries.at(-1)?.searchParams.get('category')).toBe('all');
+  expect([...queries.at(-1)!.searchParams.keys()].sort()).toEqual(['category', 'projectId']);
   page.on('dialog', (d) => d.accept());
-  await page.getByRole('button', { name: 'Archive Project', exact: true }).click();
-  await expect(counters.locator('dd').nth(1)).toHaveText('3');
+  await page.getByRole('button', { name: '프로젝트 편집', exact: true }).click();
+  await page.getByRole('button', { name: '프로젝트 보관', exact: true }).click();
+  await expect(page.locator('.project-summary')).toContainText('보관됨');
+  await page.getByRole('button', { name: '프로젝트 목록' }).click();
+  await expect(counters.first()).toHaveText('3개');
 });
 test('failed counters never become zero, while valid zero snapshots remain usable', async ({
   page,
 }) => {
   await setup(page);
   let fail = true;
-  await page.route('**/api/v1/projects?*', (route) =>
+  await page.route('**/api/v2/projects?*', (route) =>
     route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
   );
-  await page.route('**/api/v1/overview?*', (route) => {
-    const data = overview(new URL(route.request().url()).searchParams.get('scope') ?? 'all');
+  await page.route('**/api/v2/overview?*', (route) => {
+    const data = overview(new URL(route.request().url()).searchParams.get('category') ?? 'all');
     data.projects = {
       total: 0,
       archived: 0,
-      byScope: { unity: { total: 0, archived: 0 }, server: { total: 0, archived: 0 } },
+      byCategory: [{ categoryId: null, total: 0, archived: 0 }],
     };
     data.tasks = { total: 0, todo: 0, doing: 0, done: 0 };
     return fail ? route.fulfill({ status: 503, json: {} }) : route.fulfill({ json: data });

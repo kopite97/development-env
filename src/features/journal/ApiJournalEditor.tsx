@@ -45,12 +45,14 @@ export function ApiJournalEditor({
   memory,
   onClose,
   onSaved,
+  lockedProject,
 }: {
   store: JournalStore;
   options: JournalProjectOptions;
   memory: JournalMemory;
   onClose: () => void;
   onSaved: (message?: string) => void;
+  lockedProject?: JournalProjectOption;
 }) {
   const [editor, setEditor] = useState<JournalEditorMemory>(() => memory.editor!);
   const [busy, setBusy] = useState(false);
@@ -85,6 +87,7 @@ export function ApiJournalEditor({
   }, [editor.baseline, options]);
 
   const initial = journalDraft(editor.baseline);
+  if (lockedProject && !editor.baseline) initial.projectId = lockedProject.id;
   const canDiscard = useUnsavedChanges(
     busy || !!editor.intent || JSON.stringify(editor.draft) !== JSON.stringify(initial),
   );
@@ -100,6 +103,7 @@ export function ApiJournalEditor({
   };
   const values = new Map((projects.data?.items ?? []).map((project) => [project.id, project]));
   if (selected) values.set(selected.id, selected);
+  if (lockedProject) values.set(lockedProject.id, lockedProject);
 
   const reload = async () => {
     if (!editor.baseline) return;
@@ -115,6 +119,8 @@ export function ApiJournalEditor({
 
   const run = async () => {
     if (pending.current || conflict) return;
+    if (lockedProject && (lockedProject.archived || editor.draft.projectId !== lockedProject.id))
+      return;
     const errors = validateJournalDraft(editor.draft);
     if (Object.keys(errors).length) {
       setNotice(Object.values(errors).join(' '));
@@ -139,6 +145,7 @@ export function ApiJournalEditor({
         result = await store.mutate('create', {
           body: retryBody(intent),
           key: intent.key,
+          endpoint: intent.endpoint ?? '/api/v1/journals',
         });
       }
       if (!current()) return;
@@ -166,7 +173,9 @@ export function ApiJournalEditor({
       } else {
         setNotice(
           code === 'PROJECT_ARCHIVED'
-            ? '대상 프로젝트가 보관되었습니다. 기존 관계를 유지하거나 활성 프로젝트를 선택해 주세요.'
+            ? lockedProject
+              ? '보관된 프로젝트에는 일지를 작성할 수 없습니다. 입력 내용은 유지됩니다.'
+              : '대상 프로젝트가 보관되었습니다. 기존 관계를 유지하거나 활성 프로젝트를 선택해 주세요.'
             : code === 'RESOURCE_NOT_FOUND'
               ? '일지를 찾지 못했습니다. 최신 상태를 확인해 주세요.'
               : code === 'REVISION_CONFLICT'
@@ -220,6 +229,7 @@ export function ApiJournalEditor({
                 aria-label="프로젝트"
                 required
                 value={editor.draft.projectId}
+                disabled={!!lockedProject}
                 onChange={(event) =>
                   update({ ...editor, draft: { ...editor.draft, projectId: event.target.value } })
                 }
@@ -257,11 +267,16 @@ export function ApiJournalEditor({
             </Field>
           </div>
         </fieldset>
-        <JournalProjectState
-          state={projects}
-          query={options.activeList}
-          more={options.moreActive}
-        />
+        {!lockedProject && (
+          <JournalProjectState
+            state={projects}
+            query={options.activeList}
+            more={options.moreActive}
+          />
+        )}
+        {lockedProject?.archived && (
+          <p role="alert">보관된 프로젝트에는 일지를 작성할 수 없습니다.</p>
+        )}
         {editor.baseline && (
           <SelectedProject options={options} id={editor.baseline.projectId} onReady={setSelected} />
         )}
@@ -316,7 +331,7 @@ export function ApiJournalEditor({
             variant="primary"
             type="submit"
             aria-label={editor.intent ? 'Retry creation' : 'Save Journal'}
-            disabled={busy || conflict}
+            disabled={busy || conflict || lockedProject?.archived}
           >
             {busy ? '저장 중…' : '일지 저장'}
           </Button>

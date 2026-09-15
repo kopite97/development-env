@@ -1,7 +1,8 @@
+import { parseCategoryFilter, type CategoryFilter } from '../projects/categoryFilter';
 import { CancelledError, HttpError } from '../../shared/http/client';
 import { Query } from '../../shared/http/query';
 import type { PrivateTransport } from '../../shared/http/transport';
-import { uuid } from '../../shared/http/validation';
+import { object, uuid } from '../../shared/http/validation';
 import {
   parseDeletedMilestone,
   revision,
@@ -12,7 +13,7 @@ import {
 } from './apiModel';
 
 export type MilestoneFilter = {
-  scope: 'unity' | 'server' | 'all';
+  category: CategoryFilter;
   projectId?: string;
   projectStatus: 'all' | 'active' | 'archived';
   status: 'open' | 'done' | 'all';
@@ -24,14 +25,13 @@ export function milestoneParams(filter: MilestoneFilter) {
   if (!Number.isInteger(filter.limit) || filter.limit < 1 || filter.limit > 100)
     throw new Error('Invalid Milestone limit');
   const params = new URLSearchParams({
-    scope: filter.scope,
+    category: parseCategoryFilter(filter.category),
     projectStatus: filter.projectStatus,
     status: filter.status,
     limit: String(filter.limit),
   });
   if (filter.projectId) params.set('projectId', uuid(filter.projectId));
   if (
-    !['all', 'unity', 'server'].includes(filter.scope) ||
     !['all', 'active', 'archived'].includes(filter.projectStatus) ||
     !['open', 'done', 'all'].includes(filter.status)
   )
@@ -85,7 +85,7 @@ export class MilestoneStore {
     const epoch = this.epoch;
     const params = milestoneParams(filter);
     if (cursor) params.set('cursor', cursor);
-    const page = await this.transport.request('/api/v1/milestones?' + params, {
+    const page = await this.transport.request('/api/v2/milestones?' + params, {
       signal,
       generation: this.transport.generation,
       expectedStatus: 200,
@@ -136,7 +136,7 @@ export class MilestoneStore {
     if (!query) {
       query = new Query<ApiMilestone>(async (signal) => {
         const epoch = this.epoch;
-        const milestone = await this.transport.request('/api/v1/milestones/' + id, {
+        const milestone = await this.transport.request('/api/v2/milestones/' + id, {
           signal,
           generation: this.transport.generation,
           expectedStatus: 200,
@@ -172,7 +172,13 @@ export class MilestoneStore {
 
   async mutate(
     operation: 'create' | 'patch' | 'delete',
-    options: { id?: string; body?: unknown; revision?: number; key?: string },
+    options: {
+      endpoint?: '/api/v1/milestones' | '/api/v2/milestones';
+      id?: string;
+      body?: unknown;
+      revision?: number;
+      key?: string;
+    },
   ) {
     const target = options.id ?? 'create';
     if (this.pending.has(target)) throw new Error('Milestone operation already pending');
@@ -182,11 +188,33 @@ export class MilestoneStore {
     if (operation === 'delete') revision(options.revision);
     this.pending.add(target);
     try {
-      let path = '/api/v1/milestones' + (options.id ? '/' + options.id : '');
+      if (operation === 'create' && options.endpoint === '/api/v1/milestones') {
+        const legacy = await this.transport.request('/api/v1/milestones', {
+          method: 'POST',
+          json: options.body,
+          headers: { 'Idempotency-Key': options.key ?? '' },
+          generation: this.transport.generation,
+          signal: this.lifetime.signal,
+          expectedStatus: 201,
+          parse: (value) => ({ id: uuid(object(value).id) }),
+        });
+        this.transport.lifecycle.assert(this.transport.generation);
+        this.invalidate();
+        const detail = this.detail(legacy.id);
+        await detail.load();
+        this.transport.lifecycle.assert(this.transport.generation);
+        const state = detail.getSnapshot();
+        return {
+          milestone: state.data,
+          confirmedId: legacy.id,
+          reconciled: state.status === 'ready',
+        };
+      }
+      let path = '/api/v2/milestones' + (options.id ? '/' + options.id : '');
       if (operation === 'delete') path += '?revision=' + options.revision;
       if (operation === 'delete') {
         const deleted = await this.transport.request(
-          '/api/v1/milestones/' + options.id + '?revision=' + options.revision,
+          '/api/v2/milestones/' + options.id + '?revision=' + options.revision,
           {
             method: 'DELETE',
             generation: this.transport.generation,

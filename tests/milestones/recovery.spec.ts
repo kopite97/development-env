@@ -41,7 +41,7 @@ test('same identity revalidation preserves drafts and changed identity clears th
   await page.evaluate(() =>
     window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })),
   );
-  await expect(page.getByRole('heading', { name: 'Bob', exact: true })).toBeVisible();
+  await expect(page.locator('.sidebar .profile strong')).toHaveText('Bob');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 for (const status of [201, 401, 403])
@@ -52,7 +52,7 @@ for (const status of [201, 401, 403])
     let release!: () => void;
     const pending = new Promise<void>((r) => (release = r));
     await page.route('**/api/v1/me', (r) => r.fulfill({ json: account }));
-    await page.route('**/api/v1/milestones', async (r) => {
+    await page.route('**/api/v2/milestones', async (r) => {
       started = true;
       await pending;
       await r.fulfill({
@@ -67,7 +67,7 @@ for (const status of [201, 401, 403])
                 title: 'Old',
                 projectId: id(1),
                 projectName: 'Project',
-                scope: 'unity',
+                categoryId: null,
                 dueDate: null,
                 completed: false,
               }
@@ -88,10 +88,10 @@ for (const status of [201, 401, 403])
     await page.evaluate(() =>
       window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })),
     );
-    await expect(page.getByRole('heading', { name: 'Bob', exact: true })).toBeVisible();
+    await expect(page.locator('.sidebar .profile strong')).toHaveText('Bob');
     release();
     await page.waitForTimeout(150);
-    await expect(page.getByRole('heading', { name: 'Bob', exact: true })).toBeVisible();
+    await expect(page.locator('.sidebar .profile strong')).toHaveText('Bob');
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 test('CSRF rejection never replays creation and preserves exact explicit retry intent', async ({
@@ -99,7 +99,7 @@ test('CSRF rejection never replays creation and preserves exact explicit retry i
 }) => {
   await setup(page);
   const writes: { key: string; body: unknown }[] = [];
-  await page.route('**/api/v1/milestones', (r) => {
+  await page.route('**/api/v2/milestones', (r) => {
     writes.push({
       key: r.request().headers()['idempotency-key'],
       body: r.request().postDataJSON(),

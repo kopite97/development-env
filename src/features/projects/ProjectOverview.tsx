@@ -2,7 +2,7 @@ import { Box, ChevronRight, Gamepad2, Globe, Server, type LucideIcon } from 'luc
 import { EmptyState, Progress } from '../../shared/ui/controls';
 import type { ReactNode } from 'react';
 import { type Scope } from './scope';
-import type { Project } from './model';
+import type { ProjectPresentation } from './presentation';
 export const projectIcons: Record<string, LucideIcon> = {
   forest: Gamepad2,
   orbit: Box,
@@ -10,7 +10,7 @@ export const projectIcons: Record<string, LucideIcon> = {
   web: Globe,
 };
 export function ProjectOverview({
-  scope,
+  scope = 'all',
   tasks = [],
   onOpen,
   search = '',
@@ -22,25 +22,29 @@ export function ProjectOverview({
   projectOnly = false,
   counts,
   hideEmpty = false,
+  filteredResults,
 }: {
-  scope: Scope;
+  scope?: Scope;
   tasks?: { scope: Exclude<Scope, 'all'>; status: 'todo' | 'doing' | 'done' }[];
   counts?: { projects?: number; doing?: number; done?: number };
   hideEmpty?: boolean;
+  filteredResults?: { total: number };
   onOpen: (id: string) => void;
   search?: string;
-  projects: Project[];
+  projects: ProjectPresentation[];
   onReset?: () => void;
   emptyAction?: ReactNode;
   archived?: boolean;
   limit?: number;
   projectOnly?: boolean;
 }) {
-  const list = projects.filter(
-    (p) =>
-      (scope === 'all' || p.scope === scope) &&
-      (p.name + p.stack).toLowerCase().includes(search.toLowerCase()),
-  );
+  const list = filteredResults
+    ? projects
+    : projects.filter(
+        (p) =>
+          (scope === 'all' || p.scope === scope) &&
+          (p.name + p.stack).toLowerCase().includes(search.toLowerCase()),
+      );
   const filtered = tasks.filter((t) => scope === 'all' || t.scope === scope);
   const total = projects.filter((p) => scope === 'all' || p.scope === scope).length;
   return (
@@ -68,7 +72,7 @@ export function ProjectOverview({
           </strong>
         </div>
       </div>
-      {search && <p role="status">검색 결과 {list.length}개</p>}
+      {search && <p role="status">검색 결과 {filteredResults?.total ?? list.length}개</p>}
       {!hideEmpty && !list.length && (
         <EmptyState
           title={
@@ -85,7 +89,9 @@ export function ProjectOverview({
       )}
       <div className="project-list">
         {list.slice(0, limit).map((p) => {
-          const Icon = projectIcons[p.id] ?? (p.scope === 'unity' ? Gamepad2 : Server);
+          const Icon = p.scope
+            ? (projectIcons[p.id] ?? (p.scope === 'unity' ? Gamepad2 : Server))
+            : Box;
           return (
             <button className="project-row" key={p.id} onClick={() => onOpen(p.id)}>
               <span className={`project-icon ${p.color}`}>

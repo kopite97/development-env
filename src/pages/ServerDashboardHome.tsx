@@ -1,10 +1,13 @@
 import { useState, type ReactNode } from 'react';
-import { Gamepad2, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { ApiDashboardWorkspace } from '../features/dashboard/ApiDashboardWorkspace';
+import { HomeProjectFilter } from '../features/dashboard/HomeProjectFilter';
+import { homeWidget } from '../features/dashboard/homeProject';
+import { supportsProject } from '../features/dashboard/apiModel';
 import type { DashboardStore } from '../features/dashboard/apiStore';
 import type { DashboardMemory } from '../features/dashboard/draftMemory';
 import type { DashboardProjectOptions } from '../features/dashboard/projectOptions';
-import type { Widget } from '../features/dashboard/model';
+import type { Widget } from '../features/dashboard/apiModel';
 import type { ProjectStore } from '../features/projects/apiStore';
 import { serverProjectId } from '../features/projects/apiModel';
 import type { OverviewStore } from '../features/overview/apiStore';
@@ -20,8 +23,15 @@ import { ApiMilestoneList } from '../features/milestones/ApiMilestoneList';
 import type { LinkStore } from '../features/links/apiStore';
 import { ApiLinks } from '../features/links/ApiLinks';
 import { DeploymentStatus } from '../features/operations/DeploymentStatus';
-import { scopes, type Scope } from '../features/projects/scope';
-import { Badge, Button, Modal } from '../shared/ui/controls';
+import {
+  readCategoryFilter,
+  readProjectFilter,
+  selectionFilter,
+  type CategoryFilter,
+  type CategoryOption,
+} from '../features/projects/categoryFilter';
+import { CategoryFilterControl } from '../features/projects/CategoryFilterControl';
+import { Button, Modal } from '../shared/ui/controls';
 import { useQuery } from '../shared/http/query';
 import { confirmNavigation } from '../shared/lib/navigationGuard';
 import { ServerProjectOverview } from './ServerProjectOverview';
@@ -59,6 +69,7 @@ function ProjectWidget({
 }
 type Props = {
   store: DashboardStore;
+  categories: readonly CategoryOption[];
   memory: DashboardMemory;
   taskMemories: Record<string, TaskMemory>;
   options: DashboardProjectOptions;
@@ -75,33 +86,52 @@ type Props = {
   onFilterNavigate: (path: string) => void;
 };
 export function ServerDashboardHome(p: Props) {
-  const filter: Scope =
-    p.url.searchParams.get('scope') === 'unity'
-      ? 'unity'
-      : p.url.searchParams.get('scope') === 'server'
-        ? 'server'
-        : 'all';
+  const filter = readCategoryFilter(p.url.searchParams);
+  const override =
+    p.url.searchParams.has('category') || p.url.searchParams.has('scope') ? filter : undefined;
   const search = p.url.searchParams.get('q') ?? '';
+  const rawProjectId = p.url.searchParams.get('projectId');
+  let projectId: string | undefined;
+  let invalidProject = false;
+  try {
+    projectId = readProjectFilter(p.url.searchParams);
+  } catch {
+    invalidProject = true;
+  }
   const [editing, setEditing] = useState(!!p.memory.editor);
   const [detail, setDetail] = useState<{ title: string; body: string }>();
-  const counts = useQuery(p.overview.query({ scope: 'all' }));
   const clearTasks = () => {
     for (const memory of Object.values(p.taskMemories)) memory.editor = undefined;
   };
-  const filterNavigate = (scope: Scope, query: string) => {
+  const filterNavigate = (category: CategoryFilter, query: string, push = false) => {
     const params = new URLSearchParams();
-    if (scope !== 'all') params.set('scope', scope);
+    if (push) params.set('category', category);
+    else {
+      if (rawProjectId) params.set('projectId', rawProjectId);
+      if (override) params.set('category', override);
+    }
     if (query) params.set('q', query);
-    p.onFilterNavigate('/' + (params.size ? '?' + params : ''));
+    const navigate = push ? p.onNavigate : p.onFilterNavigate;
+    navigate('/' + (params.size ? '?' + params : ''));
   };
-  const reset = () => filterNavigate('all', '');
+  const reset = () => p.onFilterNavigate('/');
   const change = (action: () => void) => {
     if (confirmNavigation()) {
       clearTasks();
       action();
     }
   };
-  const render = (w: Widget) => {
+  const render = (configured: Widget) => {
+    if (invalidProject && supportsProject(configured.type))
+      return <p role="alert">올바른 프로젝트를 선택해 주세요.</p>;
+    const w = homeWidget(
+      configured,
+      editing ? undefined : projectId,
+      editing ? undefined : override,
+    );
+    if (w.selectionState === 'missingCategory')
+      return <p role="alert">사용할 수 없는 개발 분야입니다. 위젯 설정에서 다시 선택해 주세요.</p>;
+    const effective = selectionFilter(w.selection);
     let content: ReactNode;
     switch (w.type) {
       case 'overview':
@@ -121,7 +151,7 @@ export function ServerDashboardHome(p: Props) {
               store={p.tasks}
               options={p.taskOptions}
               memory={p.taskMemories[w.id] ?? (p.taskMemories[w.id] = {})}
-              filter={{ scope: w.scope, projectId: w.projectId, query: '', projectStatus: 'all' }}
+              filter={{ ...effective, query: '', projectStatus: 'all' }}
               limit={w.limit ?? 20}
             />
           </div>
@@ -132,8 +162,8 @@ export function ServerDashboardHome(p: Props) {
           <div className="journal-surface">
             <ApiRecentJournals
               store={p.journals}
-              scope={w.scope}
-              projectId={w.projectId}
+              category={effective.category}
+              projectId={effective.projectId}
               limit={w.limit ?? 3}
             />
           </div>
@@ -146,8 +176,8 @@ export function ServerDashboardHome(p: Props) {
               store={p.milestones}
               options={p.milestoneOptions}
               memory={{}}
-              scope={w.scope}
-              projectId={w.projectId}
+              category={effective.category}
+              projectId={effective.projectId}
               limit={w.limit ?? 2}
               readOnly
               onNavigate={p.onNavigate}
@@ -158,23 +188,24 @@ export function ServerDashboardHome(p: Props) {
       case 'links':
         content = (
           <div className="link-surface">
-            <ApiLinks store={p.links} filter={{ scope: w.scope, query: '' }} />
+            <ApiLinks
+              store={p.links}
+              categories={p.categories}
+              filter={{ ...effective, query: '' }}
+            />
           </div>
         );
         break;
       case 'deploy':
         content = (
-          <DeploymentStatus
-            scope={w.scope}
-            onDetail={(title, body) => setDetail({ title, body })}
-          />
+          <DeploymentStatus scope="all" onDetail={(title, body) => setDetail({ title, body })} />
         );
         break;
     }
     return (
-      <div key={JSON.stringify([w.type, w.scope, w.projectId, w.limit])}>
-        {w.projectId ? (
-          <ProjectWidget projects={p.projects} id={w.projectId} onNavigate={p.onNavigate}>
+      <div key={JSON.stringify([w.type, effective.category, effective.projectId, w.limit])}>
+        {effective.projectId ? (
+          <ProjectWidget projects={p.projects} id={effective.projectId} onNavigate={p.onNavigate}>
             {content}
           </ProjectWidget>
         ) : (
@@ -189,6 +220,7 @@ export function ServerDashboardHome(p: Props) {
         store={p.store}
         memory={p.memory}
         options={p.options}
+        categories={p.categories}
         filter={filter}
         query={search}
         onEditingChange={setEditing}
@@ -198,38 +230,54 @@ export function ServerDashboardHome(p: Props) {
         }}
         onReset={() => change(reset)}
         renderWidget={render}
+        onNavigate={p.onNavigate}
+        widgetHref={(configured) => {
+          const widget = homeWidget(configured, projectId, override);
+          const selected = selectionFilter(widget.selection);
+          if (widget.type === 'deploy' || widget.type === 'milestone') return undefined;
+          if (widget.type === 'overview' && selected.projectId)
+            return !invalidProject && selected.projectId
+              ? '/projects/' + selected.projectId
+              : '/projects';
+          const path = {
+            overview: '/projects',
+            board: '/tasks',
+            journal: '/journals',
+            links: '/library',
+          }[widget.type];
+          const params = new URLSearchParams();
+          if (!invalidProject && selected.projectId) params.set('projectId', selected.projectId);
+          if (selected.category) params.set('category', selected.category);
+          return path + (params.size ? '?' + params : '');
+        }}
+        displaySelection={(widget) => homeWidget(widget, projectId, override).selection}
         scaffold={{
           title: '다시 만나 반가워요 👋',
           description: '만들고 있는 것들, 오늘의 할 일. 여기서 이어가세요.',
-          overview: (
-            <div className="welcome-strip">
-              <div className="welcome-icon">
-                <Gamepad2 size={23} />
-              </div>
-              <div>
-                <strong>오늘도, 아이디어를 현실로.</strong>
-                <span>
-                  현재 프로젝트 <b>{counts.data?.projects.total ?? '—'}개</b>와 함께 개발을 이어가
-                  보세요.
-                </span>
-              </div>
-              <Badge tone="purple">개인 작업실</Badge>
-            </div>
-          ),
           filters: (
-            <div className="section-toolbar">
-              <div className="tabs">
-                {Object.entries(scopes).map(([key, label]) => (
-                  <button
-                    key={key}
-                    disabled={editing}
-                    className={filter === key ? 'selected' : ''}
-                    onClick={() => change(() => filterNavigate(key as Scope, search))}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+            <div className="section-toolbar home-toolbar classification-toolbar">
+              <CategoryFilterControl
+                value={filter}
+                options={p.categories}
+                disabled={editing}
+                onChange={(category) => change(() => filterNavigate(category, search, true))}
+              />
+              <HomeProjectFilter
+                options={p.options}
+                value={projectId ?? rawProjectId ?? ''}
+                invalid={invalidProject}
+                disabled={editing}
+                onChange={(id) =>
+                  change(() => {
+                    const params = new URLSearchParams(p.url.search);
+                    params.delete('category');
+                    params.delete('scope');
+                    if (id) params.set('projectId', id);
+                    else params.delete('projectId');
+                    p.onNavigate('/' + (params.size ? '?' + params : ''));
+                  })
+                }
+              />
               <label className="search">
                 <Search size={15} />
                 <input
@@ -240,6 +288,9 @@ export function ServerDashboardHome(p: Props) {
                   onChange={(event) => change(() => filterNavigate(filter, event.target.value))}
                 />
               </label>
+              <Button disabled={editing || (!override && !projectId)} onClick={() => change(reset)}>
+                저장된 위젯 설정 사용
+              </Button>
             </div>
           ),
         }}

@@ -5,7 +5,7 @@ test('repeated revision conflicts and failed reconciliation preserve the draft u
   await setup(page);
   let conflicts = 0,
     detailCalls = 0;
-  await page.route('**/api/v1/tasks/' + task().id, (route) => {
+  await page.route('**/api/v2/tasks/' + task().id, (route) => {
     if (route.request().method() === 'PATCH') {
       conflicts++;
       return route.fulfill({
@@ -34,7 +34,7 @@ test('repeated revision conflicts and failed reconciliation preserve the draft u
 for (const code of ['RESOURCE_DELETED', 'INVALID_RESOURCE_STATE', 'PROJECT_ARCHIVED'])
   test(`${code} remains distinct and preserves editor inputs`, async ({ page }) => {
     await setup(page);
-    await page.route('**/api/v1/tasks/' + task().id, (route) =>
+    await page.route('**/api/v2/tasks/' + task().id, (route) =>
       route.request().method() === 'PATCH'
         ? route.fulfill({ status: 409, json: { code, message: code } })
         : route.fulfill({
@@ -43,7 +43,7 @@ for (const code of ['RESOURCE_DELETED', 'INVALID_RESOURCE_STATE', 'PROJECT_ARCHI
     );
     // First detail is live; the server changes state only after opening the editor.
     let opened = false;
-    await page.route('**/api/v1/tasks/' + task().id, (route) => {
+    await page.route('**/api/v2/tasks/' + task().id, (route) => {
       if (!opened && route.request().method() === 'GET') {
         opened = true;
         return route.fulfill({ json: task() });
@@ -72,7 +72,7 @@ for (const [status, code, text] of [
     await setup(page);
     await page.goto('/tasks');
     await page.getByRole('button', { name: 'Task 50', exact: true }).click();
-    await page.route('**/api/v1/tasks/' + task().id, (route) =>
+    await page.route('**/api/v2/tasks/' + task().id, (route) =>
       route.fulfill({ status, json: { code, message: code } }),
     );
     await page.getByLabel('태스크 제목').fill('Private draft');
@@ -91,7 +91,7 @@ test('confirmed save closes even if subsequent list refresh fails', async ({ pag
   await page.goto('/tasks');
   await page.getByRole('button', { name: 'Task 50', exact: true }).click();
   await page.getByLabel('태스크 제목').fill('Confirmed');
-  await page.route('**/api/v1/tasks?*', (route) =>
+  await page.route('**/api/v2/tasks?*', (route) =>
     route.fulfill({ status: 503, json: { code: 'UNAVAILABLE' } }),
   );
   await page.getByRole('button', { name: '태스크 저장' }).click();
@@ -103,7 +103,7 @@ test('stats failure does not hide a successful column or fabricate zero counts',
   page,
 }) => {
   await setup(page);
-  await page.route('**/api/v1/tasks/stats?*', (route) =>
+  await page.route('**/api/v2/tasks/stats?*', (route) =>
     route.fulfill({ json: { counts: { todo: 0 }, total: 0, asOf: task().createdAt } }),
   );
   await page.goto('/tasks');
@@ -124,7 +124,7 @@ test('native drag and keyboard select send status-only writes; trash failures re
   await expect(page.getByLabel('Task 50 상태')).toHaveValue('doing');
   expect(state.writes[0].body).toEqual({ revision: 1, status: 'doing' });
   await page.getByRole('button', { name: /휴지통/ }).click();
-  await page.route('**/api/v1/tasks/*/restore', (route) =>
+  await page.route('**/api/v2/tasks/*/restore', (route) =>
     route.fulfill({ status: 409, json: { code: 'INVALID_RESOURCE_STATE' } }),
   );
   await page.getByRole('button', { name: 'Task 51 복구' }).click();

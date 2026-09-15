@@ -11,7 +11,9 @@ const dto = (n = 1, position = n - 1) => ({
   label: 'Link ' + n,
   description: '',
   url: 'https://example.com/' + n,
-  scope: 'all',
+  projectId: null,
+  projectName: null,
+  categoryId: null,
 });
 const collection = (items = [dto()], collectionRevision = 1) => ({
   items,
@@ -35,9 +37,9 @@ describe('Link collection authority', () => {
       paths.push(String(p));
       return Response.json(String(p).includes('?') ? collection([]) : dto());
     });
-    await store.list({ scope: 'unity', query: ' %_! ' }).load();
+    await store.list({ category: 'uncategorized', query: ' %_! ' }).load();
     await store.detail(id(1)).load();
-    expect(paths[0]).toContain('scope=unity&query=+%25_%21+');
+    expect(paths[0]).toContain('category=uncategorized&query=+%25_%21+');
     expect(paths.join()).not.toContain('limit');
     expect(store.detail(id(1)).getSnapshot().data?.id).toBe(id(1));
   });

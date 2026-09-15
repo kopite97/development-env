@@ -3,15 +3,15 @@ import { ApiLinks } from '../features/links/ApiLinks';
 import type { LinkStore, LinkFilter } from '../features/links/apiStore';
 export function ServerLinkHome({
   store,
-  scope = 'all',
+  category = 'all',
 }: {
   store: LinkStore;
-  scope?: LinkFilter['scope'];
+  category?: LinkFilter['category'];
 }) {
   return (
     <div className="link-surface">
       <WidgetFrame
-        widget={{ id: 'server-links', type: 'links', title: '빠른 링크', scope, size: 'small' }}
+        widget={{ id: 'server-links', type: 'links', title: '빠른 링크', size: 'small' }}
         editing={false}
         index={3}
         total={4}
@@ -22,7 +22,7 @@ export function ServerLinkHome({
         onEdit={() => {}}
         onRemove={() => {}}
       >
-        <ApiLinks store={store} filter={{ scope, query: '' }} />
+        <ApiLinks store={store} filter={{ category, query: '' }} />
       </WidgetFrame>
     </div>
   );

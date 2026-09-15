@@ -10,18 +10,14 @@
   padding: 0;
   min-width: 0;
 }
-.authenticated-task-screen [hidden] {
-  display: none;
-}
-.task-session-logout {
-  position: fixed;
-  right: 12px;
-  bottom: 8px;
-  z-index: 5;
-}
-.dashboard-session-logout.button {
-  display: block;
-  margin: 0 20px 20px auto;
+.session-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 20px;
+  overflow-wrap: anywhere;
 }
 .auth-header {
   display: flex;
@@ -56,9 +52,9 @@
 }
 .auth-card button:not(.task-surface *, .milestone-surface *, .link-surface *) {
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   padding: 12px 18px;
   font: inherit;
   cursor: pointer;
@@ -72,40 +68,141 @@
   outline: 3px solid var(--accent);
   outline-offset: 4px;
 }
-.auth-identity {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.auth-identity p {
-  margin: 0;
-}
-.auth-avatar {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 24px;
-}
-.auth-card nav {
+.session-check-notice {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 20px;
-  margin: 28px 0;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
-.auth-card a:not(.link-surface *) {
-  color: var(--accent);
+.session-check-notice span {
+  flex: 1 1 240px;
 }
-.auth-pending {
-  background: var(--surface-subtle);
-  border-radius: 8px;
-  padding: 20px;
+
+.auth-app.auth-login-shell {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+.auth-login-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 40px 32px;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  text-align: center;
+}
+.auth-login-panel > * {
+  width: min(100%, 336px);
+  align-self: center;
+}
+.auth-login-shell .auth-header {
+  display: block;
+  margin: 0 0 8px;
+}
+.auth-login-shell .auth-brand {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+}
+.auth-login-shell .auth-logo {
+  width: 56px;
+  height: 56px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.auth-login-shell .auth-brand h1 {
+  font-size: 44px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  font-weight: 750;
+}
+.auth-login-shell .auth-card {
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-none);
+  background: transparent;
+}
+.auth-login-shell .auth-card h2 {
+  margin: 0 0 21px;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.auth-login-shell .auth-card p {
+  color: var(--muted);
+  font-size: 14px;
+}
+.auth-login-shell .auth-card [role='alert'] {
   margin-bottom: 24px;
+  color: var(--danger);
 }
-.auth-pending h3 {
-  margin-top: 0;
+.auth-login-shell .auth-card button {
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.auth-login-shell .auth-card button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+.auth-login-shell .auth-card button:active:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.auth-login-shell .auth-card button img {
+  flex-shrink: 0;
+}
+.auth-login-shell :focus-visible {
+  outline-color: var(--accent);
+}
+@media (max-width: 1023px) {
+  .auth-app.auth-login-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .auth-login-panel {
+    border-left: 0;
+  }
+}
+@media (max-width: 600px) {
+  .auth-login-panel {
+    padding: 26px 18px;
+  }
+  .auth-login-shell .auth-brand h1 {
+    font-size: 28px;
+  }
+  .auth-login-shell .auth-card h2 {
+    font-size: 16px;
+    margin-bottom: 17px;
+  }
 }

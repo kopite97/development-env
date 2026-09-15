@@ -9,7 +9,7 @@ const dto = {
   updatedAt: '2026-09-13T00:00:00Z',
   title: 'Task',
   projectName: 'Project',
-  scope: 'unity',
+  categoryId: null,
   description: '',
   status: 'todo',
   priority: 'normal',
@@ -17,7 +17,7 @@ const dto = {
   deletedAt: null,
 };
 const filter = {
-  scope: 'all',
+  category: 'all',
   projectStatus: 'all',
   query: '%_',
   deleted: false,
@@ -136,7 +136,7 @@ it('reconciles an original creation replay instead of resurrecting a deleted ent
     body: { title: 'Task', projectId: dto.projectId },
     key: 'same-key',
   });
-  expect(result.task.deletedAt).toBe(dto.createdAt);
-  expect(result.task.projectName).toBe('Renamed');
+  expect(result.task?.deletedAt).toBe(dto.createdAt);
+  expect(result.task?.projectName).toBe('Renamed');
   expect(store.entities.get(dto.id)?.revision).toBe(3);
 });

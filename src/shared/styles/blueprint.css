@@ -1,0 +1,123 @@
+.blueprint-surface {
+  position: relative;
+  isolation: isolate;
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--accent) var(--blueprint-grid-idle), transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) var(--blueprint-grid-idle), transparent) 1px,
+      transparent 1px
+    );
+  background-size: 32px 32px;
+}
+.blueprint-surface::before,
+.blueprint-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.blueprint-surface::before {
+  background: radial-gradient(
+    circle calc(var(--blueprint-size) / 2) at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    color-mix(in srgb, var(--accent) var(--blueprint-glow), transparent),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity var(--blueprint-fade-duration) ease;
+}
+.blueprint-surface::after {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--accent) var(--blueprint-grid), transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) var(--blueprint-grid), transparent) 1px,
+      transparent 1px
+    ),
+    radial-gradient(
+      circle at 1px 1px,
+      color-mix(in srgb, var(--accent) var(--blueprint-grid), transparent) 2px,
+      transparent 3px
+    );
+  background-size:
+    32px 32px,
+    32px 32px,
+    128px 128px;
+  mask-image: radial-gradient(
+    circle calc(var(--blueprint-size) / 2) at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    black,
+    transparent
+  );
+  opacity: 0;
+  transition: opacity var(--blueprint-fade-duration) ease;
+}
+.blueprint-surface[data-blueprint-active='true']::before,
+.blueprint-surface[data-blueprint-active='true']::after {
+  opacity: var(--blueprint-edge-opacity, 0);
+}
+.welcome-strip.blueprint-surface {
+  background-size: 32px 32px;
+  --blueprint-size: 240px;
+  --blueprint-glow: var(--blueprint-welcome-glow);
+  --blueprint-grid: var(--blueprint-welcome-grid);
+  --blueprint-grid-idle: var(--blueprint-welcome-idle);
+  background-color: var(--surface-subtle);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--accent) var(--blueprint-grid-idle), transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) var(--blueprint-grid-idle), transparent) 1px,
+      transparent 1px
+    );
+}
+.welcome-strip.blueprint-surface::after {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--accent) var(--blueprint-grid), transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) var(--blueprint-grid), transparent) 1px,
+      transparent 1px
+    );
+  background-size: 32px 32px;
+}
+.page-heading.blueprint-surface {
+  --blueprint-glow: var(--blueprint-heading-glow);
+  --blueprint-grid: var(--blueprint-heading-grid);
+  --blueprint-grid-idle: var(--blueprint-heading-idle);
+}
+@media (prefers-reduced-motion: reduce) {
+  .blueprint-surface::before,
+  .blueprint-surface::after,
+  .blueprint-surface[data-blueprint-active='true']::before,
+  .blueprint-surface[data-blueprint-active='true']::after {
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+    opacity: 0.25;
+    transition: none;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .blueprint-surface::before,
+  .blueprint-surface::after {
+    display: none;
+  }
+}
+@supports not (mask-image: radial-gradient(black, transparent)) {
+  .blueprint-surface::after {
+    display: none;
+  }
+}

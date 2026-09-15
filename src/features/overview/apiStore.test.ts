@@ -2,12 +2,12 @@ import { expect, it } from 'vitest';
 import { createHttpClient, Lifecycle } from '../../shared/http/client';
 import { OverviewStore } from './apiStore';
 const data = (total: number) => ({
-  scope: 'all',
+  category: 'all',
   projectId: null,
   projects: {
     total,
     archived: 0,
-    byScope: { unity: { total, archived: 0 }, server: { total: 0, archived: 0 } },
+    byCategory: [{ categoryId: null, total, archived: 0 }],
   },
   tasks: { total: 0, todo: 0, doing: 0, done: 0 },
   asOf: '2026-09-13T00:00:00Z',
@@ -24,8 +24,8 @@ it('deduplicates identical filters and ignores old read publication across mutat
       fetch: () => new Promise((resolve) => pending.push(resolve)),
     }),
   });
-  const query = store.query({ scope: 'all' });
-  expect(store.query({ scope: 'all' })).toBe(query);
+  const query = store.query({ category: 'all' });
+  expect(store.query({ category: 'all' })).toBe(query);
   const first = query.load();
   await new Promise((r) => setTimeout(r, 0));
   store.invalidate();

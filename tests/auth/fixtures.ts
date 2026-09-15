@@ -1,4 +1,4 @@
-import { defaultLayout as savedHomeFixture } from '../../src/features/dashboard/model';
+import { savedHomeFixture } from '../api-fixtures';
 import { test as base, expect } from '@playwright/test';
 const sentinels = Object.fromEntries(
   ['projects', 'tasks', 'journals', 'milestones', 'links', 'layout', 'unrelated'].map(
@@ -16,7 +16,7 @@ export const test = base.extend<{ authIsolation: void }>({
         const path = new URL(request.url()).pathname;
         if (
           path.startsWith('/api/') &&
-          !/^\/api\/v1\/(me$|auth\/|projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$)/.test(
+          !/^\/api\/(?:v1\/(?:me$|auth\/|project-categories(?:\/|$))|v2\/(?:projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$))/.test(
             path,
           )
         )
@@ -38,45 +38,56 @@ export const test = base.extend<{ authIsolation: void }>({
           throw new Error('Auth must not clear browser storage');
         };
       }, sentinels);
-      await context.route('**/api/v1/overview?*', (route) => {
+      await context.route('**/api/v2/overview?*', (route) => {
         const p = new URL(route.request().url()).searchParams;
         return route.fulfill({
           json: {
-            scope: p.get('scope') ?? 'all',
+            category: p.get('category') ?? 'all',
             projectId: p.get('projectId'),
             projects: {
               total: 0,
               archived: 0,
-              byScope: { unity: { total: 0, archived: 0 }, server: { total: 0, archived: 0 } },
+              byCategory: [{ categoryId: null, total: 0, archived: 0 }],
             },
             tasks: { todo: 0, doing: 0, done: 0, total: 0 },
             asOf: '2026-09-13T00:00:00Z',
           },
         });
       });
-      await context.route('**/api/v1/projects?*', (route) =>
+      await context.route('**/api/v1/project-categories', (route) =>
+        route.fulfill({ json: { items: [], total: 0 } }),
+      );
+      await context.route('**/api/v2/projects?*', (route) =>
         route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
       );
-      await context.route('**/api/v1/tasks?*', (route) =>
+      await context.route('**/api/v2/tasks?*', (route) =>
         route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
       );
-      await context.route('**/api/v1/tasks/stats?*', (route) =>
+      await context.route('**/api/v2/tasks/stats?*', (route) =>
         route.fulfill({
           json: { counts: { todo: 0, doing: 0, done: 0 }, total: 0, asOf: '2026-09-13T00:00:00Z' },
         }),
       );
-      await context.route('**/api/v1/links?*', (route) =>
+      await context.route('**/api/v2/links?*', (route) =>
         route.fulfill({ json: { items: [], total: 0, nextCursor: null, collectionRevision: 0 } }),
       );
-      await context.route('**/api/v1/milestones?*', (route) =>
+      await context.route('**/api/v2/milestones?*', (route) =>
         route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
       );
-      await context.route('**/api/v1/journals?*', (route) =>
+      await context.route('**/api/v2/journals?*', (route) =>
         route.fulfill({ json: { items: [], total: 0, nextCursor: null } }),
       );
-      await context.route('**/api/v1/dashboards/home', (route) =>
+      await context.route('**/api/v2/dashboards/home', (route) =>
         route.fulfill({
-          json: { id: 'home', schemaVersion: 1, revision: 1, widgets: savedHomeFixture },
+          json: { id: 'home', schemaVersion: 2, revision: 1, widgets: savedHomeFixture },
+        }),
+      );
+      await context.route('**/api/v2/projects/category-counts', (route) =>
+        route.fulfill({
+          json: {
+            items: [{ categoryId: null, active: 0, archived: 0 }],
+            totals: { active: 0, archived: 0 },
+          },
         }),
       );
       await use();

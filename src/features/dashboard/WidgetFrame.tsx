@@ -5,7 +5,9 @@ import type { Widget } from './model';
 import { widgetCatalog as registry } from './widgetCatalog';
 
 type Props = {
-  widget: Widget;
+  widget: Omit<Widget, 'scope'> & { scope?: Widget['scope'] };
+  classification?: ReactNode;
+  titleLink?: { href: string; onNavigate: (path: string) => void };
   children: ReactNode;
   editing: boolean;
   index: number;
@@ -30,6 +32,8 @@ export function WidgetFrame({
   onMove,
   onEdit,
   onRemove,
+  classification,
+  titleLink,
 }: Props) {
   const Icon = registry[widget.type].icon;
   return (
@@ -87,14 +91,46 @@ export function WidgetFrame({
       <header className="widget-header">
         <div>
           <Icon size={17} />
-          <h2>{widget.title}</h2>
+          <h2>
+            {titleLink && !editing ? (
+              <a
+                className="widget-title-link"
+                href={titleLink.href}
+                draggable={false}
+                onClick={(event) => {
+                  if (
+                    event.defaultPrevented ||
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  )
+                    return;
+                  event.preventDefault();
+                  titleLink.onNavigate(titleLink.href);
+                }}
+              >
+                {widget.title}
+              </a>
+            ) : (
+              widget.title
+            )}
+          </h2>
         </div>
         <Badge
           tone={
             widget.scope === 'unity' ? 'purple' : widget.scope === 'server' ? 'blue' : 'neutral'
           }
         >
-          {widget.scope === 'all' ? '전체' : widget.scope === 'unity' ? 'Unity' : '서버 · 웹'}
+          {classification ??
+            (widget.scope === 'all'
+              ? '전체'
+              : widget.scope === 'unity'
+                ? 'Unity'
+                : widget.scope === 'server'
+                  ? '서버 · 웹'
+                  : '전체')}
         </Badge>
       </header>
       {children}

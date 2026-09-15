@@ -1,6 +1,8 @@
 # AGENTS.md
 
-Before making changes, identify and follow all AGENTS.md files governing the files you modify.
+Before making changes, read and follow `docs/AGENTS.md`.
+
+Then identify and follow all additional AGENTS.md files governing the files you modify.
 
 More deeply nested AGENTS.md files take precedence when instructions conflict.
 
@@ -11,7 +13,7 @@ More deeply nested AGENTS.md files take precedence when instructions conflict.
 - `src/pages/PAGES.md` — route-level page composition
 - `src/features/FEATURES.md` — user-facing features
 - `src/shared/SHARED.md` — reusable feature-agnostic code
-- `docs/AGENTS.md` — project documentation
+- `docs/AGENTS.md` — required project-wide development and documentation instructions
 - `docs/plans/PLANS.md` — implementation and migration plans
 - `docs/decisions/DECISIONS.md` — architectural and technical decisions
 - `docs/architecture/ARCHITECTURE.md` — system and application architecture

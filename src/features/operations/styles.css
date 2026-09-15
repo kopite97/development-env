@@ -1,9 +1,9 @@
 .service-summary {
   margin: 0 20px 3px;
   padding: 10px 12px;
-  background: #f0f7f3;
-  border-radius: 7px;
-  color: #67947d;
+  background: var(--success-soft);
+  border-radius: var(--radius-sm);
+  color: var(--success-text);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -12,7 +12,7 @@
 .service-summary > span:last-child {
   margin-left: auto;
   font-size: 12px;
-  color: #91ae9e;
+  color: var(--success);
 }
 .service-row {
   margin: 0 20px;
@@ -28,7 +28,14 @@
   border-top: 1px solid var(--border);
 }
 .service-row > svg {
-  color: #939aab;
+  color: var(--text);
+  stroke-width: 1.75;
+}
+.service-row:is(:hover, :focus-visible):not(:disabled) > svg {
+  color: var(--accent);
+}
+.service-version > svg {
+  stroke-width: 1.75;
 }
 .service-row strong {
   display: block;
@@ -38,17 +45,19 @@
 .service-row small {
   display: block;
   font-size: 12px;
-  color: #969eab;
+  color: var(--muted);
   margin-top: 4px;
 }
 .service-version {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   width: 100%;
   padding-left: 27px;
   display: flex;
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: #9da3ad;
+  color: var(--muted);
 }
 .service-version span {
   margin-left: auto;

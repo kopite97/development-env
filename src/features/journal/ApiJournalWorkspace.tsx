@@ -4,7 +4,8 @@ import { Button, EmptyState, Field, Modal } from '../../shared/ui/controls';
 import { PageScaffold } from '../../shared/ui/PageScaffold';
 import { HttpError, CancelledError } from '../../shared/http/client';
 import { useQuery } from '../../shared/http/query';
-import { scopes, type Scope } from '../projects/scope';
+import type { CategoryFilter, CategoryOption } from '../projects/categoryFilter';
+import { CategoryFilterControl } from '../projects/CategoryFilterControl';
 import { journalDraft, presentation, type ApiJournal, type JournalProjectOption } from './apiModel';
 import type { JournalMemory } from './draftMemory';
 import type { JournalFilter, JournalStore } from './apiStore';
@@ -15,22 +16,37 @@ export function ApiJournalWorkspace({
   store,
   options,
   memory,
-  scope,
+  category,
+  categories,
   queryText,
+  projectId,
+  from,
+  to,
+  sort,
   onFilterNavigate,
 }: {
   store: JournalStore;
   options: JournalProjectOptions;
   memory: JournalMemory;
-  scope: Scope;
+  category: CategoryFilter;
+  categories: readonly CategoryOption[];
   queryText: string;
-  onFilterNavigate: (scope: Scope, query: string) => void;
+  projectId: string;
+  from: string;
+  to: string;
+  sort: 'newest' | 'oldest';
+  onFilterNavigate: (
+    category: CategoryFilter,
+    query: string,
+    fields?: Partial<Record<'projectId' | 'from' | 'to' | 'sort', string>>,
+  ) => void;
 }) {
   const [search, setSearch] = useState(queryText);
-  const [projectId, setProjectId] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
+  const setProjectId = (value: string) =>
+    onFilterNavigate(category, queryText, { projectId: value });
+  const setFrom = (value: string) => onFilterNavigate(category, queryText, { from: value });
+  const setTo = (value: string) => onFilterNavigate(category, queryText, { to: value });
+  const setSort = (value: string) => onFilterNavigate(category, queryText, { sort: value });
   const [editing, setEditing] = useState(false);
   const [detail, setDetail] = useState<ApiJournal>();
   const [deleting, setDeleting] = useState<ApiJournal>();
@@ -40,7 +56,7 @@ export function ApiJournalWorkspace({
   const projectState = useQuery(options.list);
   const validRange = !from || !to || from <= to;
   const filter: JournalFilter = {
-    scope,
+    category,
     projectId: projectId || undefined,
     projectStatus: 'all',
     query: queryText,
@@ -51,7 +67,7 @@ export function ApiJournalWorkspace({
   };
   const list = store.list(filter);
   const state = useQuery(list);
-  const hasFilters = !!(queryText || scope !== 'all' || projectId || from || to);
+  const hasFilters = !!(queryText || category !== 'all' || projectId || from || to);
   const projects = useMemo(
     () => new Map((projectState.data?.items ?? []).map((project) => [project.id, project])),
     [projectState.data],
@@ -61,9 +77,9 @@ export function ApiJournalWorkspace({
   useEffect(() => setSearch(queryText), [queryText]);
   useEffect(() => {
     if (search === queryText) return;
-    const timer = setTimeout(() => onFilterNavigate(scope, search), 250);
+    const timer = setTimeout(() => onFilterNavigate(category, search), 250);
     return () => clearTimeout(timer);
-  }, [onFilterNavigate, queryText, scope, search]);
+  }, [onFilterNavigate, queryText, category, search]);
   useEffect(() => {
     if (!projectId || projects.has(projectId)) return;
     const query = options.detail(projectId);
@@ -79,11 +95,7 @@ export function ApiJournalWorkspace({
   if (selectedProject) projects.set(selectedProject.id, selectedProject);
 
   const reset = () => {
-    onFilterNavigate('all', '');
-    setProjectId('');
-    setFrom('');
-    setTo('');
-    setSort('newest');
+    onFilterNavigate('all', '', { projectId: '', from: '', to: '', sort: '' });
   };
   const current = () => store.transport.generation === store.transport.lifecycle.generation;
   const startCreate = () => {
@@ -115,11 +127,7 @@ export function ApiJournalWorkspace({
     memory.editor = undefined;
     setEditing(false);
     setNotice(message ?? '');
-    onFilterNavigate('all', '');
-    setProjectId('');
-    setFrom('');
-    setTo('');
-    setSort('newest');
+    onFilterNavigate('all', '', { projectId: '', from: '', to: '', sort: '' });
   };
   const deleteJournal = async () => {
     if (!deleting || pending.has(deleting.id)) return;
@@ -169,18 +177,23 @@ export function ApiJournalWorkspace({
           </Button>
         }
         filters={
-          <div className="section-toolbar">
-            <div className="tabs">
-              {Object.entries(scopes).map(([key, label]) => (
-                <button
-                  key={key}
-                  className={scope === key ? 'selected' : ''}
-                  onClick={() => onFilterNavigate(key as Scope, search)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div className="section-toolbar classification-toolbar workbench-filter-toolbar">
+            <CategoryFilterControl
+              value={category}
+              options={categories}
+              onChange={(value) => onFilterNavigate(value, search)}
+            />
+            <Field label="일지 프로젝트 필터">
+              <select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+                <option value="">전체 프로젝트</option>
+                {[...projects.values()].map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                    {project.archived ? ' (보관)' : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <label className="search">
               <Search size={15} />
               <input
@@ -193,19 +206,8 @@ export function ApiJournalWorkspace({
           </div>
         }
       >
-        <div className="content-panel">
-          <div className="form-grid">
-            <Field label="일지 프로젝트 필터">
-              <select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-                <option value="">전체 프로젝트</option>
-                {[...projects.values()].map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                    {project.archived ? ' (보관)' : ''}
-                  </option>
-                ))}
-              </select>
-            </Field>
+        <div className="content-panel journal-page-content">
+          <div className="form-grid journal-query-toolbar">
             <Field label="시작일">
               <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
             </Field>
@@ -232,7 +234,6 @@ export function ApiJournalWorkspace({
               filter={filter}
               state={state}
               list={list}
-              onCreate={startCreate}
               onEdit={startEdit}
               onDetail={setDetail}
               onDelete={setDeleting}
@@ -283,7 +284,6 @@ function JournalResults({
   filter,
   state,
   list,
-  onCreate,
   onEdit,
   onDetail,
   onDelete,
@@ -293,7 +293,6 @@ function JournalResults({
   filter: JournalFilter;
   state: ReturnType<ReturnType<JournalStore['list']>['getSnapshot']>;
   list: ReturnType<JournalStore['list']>;
-  onCreate: () => void;
   onEdit: (journal: ApiJournal) => void;
   onDetail: (journal: ApiJournal) => void;
   onDelete: (journal: ApiJournal) => void;
@@ -345,12 +344,7 @@ function JournalResults({
             ? '검색 조건에 맞는 개발일지가 없어요'
             : '개발일지가 없어요'
         }
-      >
-        <Button onClick={onCreate}>
-          <Plus size={16} />
-          일지 작성
-        </Button>
-      </EmptyState>
+      />
     );
   if (!state.data) return null;
   return (
@@ -393,7 +387,7 @@ function JournalItems({
       {items.map((raw) => {
         const journal = presentation(raw);
         return (
-          <div key={journal.id}>
+          <div key={journal.id} className="journal-list-item">
             <button className="document-row" onClick={() => onDetail(raw)}>
               <BookOpen size={20} />
               <span>

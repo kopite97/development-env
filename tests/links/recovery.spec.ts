@@ -40,7 +40,7 @@ for (const status of [201, 401, 403])
     let release!: () => void;
     const pending = new Promise<void>((r) => (release = r));
     await page.route('**/api/v1/me', (r) => r.fulfill({ json: account }));
-    await page.route('**/api/v1/links', async (r) => {
+    await page.route('**/api/v2/links', async (r) => {
       started = true;
       await pending;
       await r.fulfill({
@@ -89,7 +89,7 @@ for (const status of [201, 401, 403])
 test('CSRF recovery keeps exact Link intent without automatic replay', async ({ page }) => {
   await setup(page);
   const writes: unknown[] = [];
-  await page.route('**/api/v1/links', (r) => {
+  await page.route('**/api/v2/links', (r) => {
     writes.push({
       key: r.request().headers()['idempotency-key'],
       body: r.request().postDataJSON(),
@@ -111,7 +111,7 @@ test('lower server quota allows correcting draft without inventing collection ca
   page,
 }) => {
   await setup(page);
-  await page.route('**/api/v1/links', (r) =>
+  await page.route('**/api/v2/links', (r) =>
     r.fulfill({
       status: 429,
       json: {
@@ -134,7 +134,7 @@ test('a slow old filter response cannot overwrite newer scope results', async ({
   let started = false;
   let release!: () => void;
   const pending = new Promise<void>((r) => (release = r));
-  await page.route('**/api/v1/links?*', async (r) => {
+  await page.route('**/api/v2/links?*', async (r) => {
     const p = new URL(r.request().url()).searchParams;
     if (p.get('query') === 'old') {
       started = true;

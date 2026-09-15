@@ -1,4 +1,5 @@
-import { PageScaffold, type PageScaffoldProps } from '../../shared/ui/PageScaffold';
+import { type PageScaffoldProps } from '../../shared/ui/PageScaffold';
+import { ProjectsLayout } from './ProjectsLayout';
 import { ProjectOverview } from './ProjectOverview';
 import type { Scope } from './scope';
 import { useState } from 'react';
@@ -37,40 +38,27 @@ export function ProjectsWorkspace({
   const [editor, setEditor] = useState<Project | 'new' | null>(null);
   const list = projects.filter((p) => p.archived === archived);
   return (
-    <PageScaffold
-      {...scaffold}
-      actions={
-        <Button variant="primary" onClick={() => setEditor('new')}>
-          <Plus size={16} />
-          프로젝트 추가
-        </Button>
-      }
+    <ProjectsLayout
+      scaffold={scaffold}
+      archived={archived}
+      onArchivedChange={setArchived}
+      onCreate={() => setEditor('new')}
     >
-      <div className="content-panel">
-        <div className="feature-actions">
-          <Button variant={!archived ? 'primary' : 'secondary'} onClick={() => setArchived(false)}>
-            현재 프로젝트
+      <ProjectOverview
+        projects={list}
+        scope={filter}
+        search={query}
+        tasks={tasks}
+        onOpen={openProject}
+        archived={archived}
+        onReset={resetSearch}
+        emptyAction={
+          <Button onClick={() => setEditor('new')}>
+            <Plus size={16} />
+            프로젝트 추가
           </Button>
-          <Button variant={archived ? 'primary' : 'secondary'} onClick={() => setArchived(true)}>
-            보관된 프로젝트
-          </Button>
-        </div>
-        <ProjectOverview
-          projects={list}
-          scope={filter}
-          search={query}
-          tasks={tasks}
-          onOpen={openProject}
-          archived={archived}
-          onReset={resetSearch}
-          emptyAction={
-            <Button onClick={() => setEditor('new')}>
-              <Plus size={16} />
-              프로젝트 추가
-            </Button>
-          }
-        />
-      </div>
+        }
+      />
       {editor && (
         <ProjectEditor
           existing={editor === 'new' ? undefined : editor}
@@ -87,6 +75,6 @@ export function ProjectsWorkspace({
           }}
         />
       )}
-    </PageScaffold>
+    </ProjectsLayout>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Button, Field, Modal } from '../../shared/ui/controls';
+import { Button, Modal } from '../../shared/ui/controls';
 import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
+import { ProjectFields } from './ProjectFields';
 import type { Project } from './model';
 export function ProjectEditor({
   existing,
@@ -31,8 +32,6 @@ export function ProjectEditor({
   const close = () => {
     if (canDiscard()) onClose();
   };
-  const change = <K extends keyof Project>(key: K, value: Project[K]) =>
-    setForm((current) => ({ ...current, [key]: value }));
   return (
     <Modal title={existing ? '프로젝트 편집' : '프로젝트 추가'} onClose={close} wide>
       <form
@@ -65,68 +64,10 @@ export function ProjectEditor({
           else setError('저장하지 못했습니다. 입력 내용을 유지했습니다. 다시 저장해 주세요.');
         }}
       >
-        <div className="form-grid">
-          <Field label="프로젝트 이름">
-            <input
-              required
-              maxLength={100}
-              value={form.name}
-              onChange={(e) => change('name', e.target.value)}
-              autoFocus
-            />
-          </Field>
-          <Field label="개발 분야">
-            <select
-              value={form.scope}
-              onChange={(e) => change('scope', e.target.value as Project['scope'])}
-            >
-              <option value="unity">Unity 개발</option>
-              <option value="server">서버 · 웹 개발</option>
-            </select>
-          </Field>
-          <Field label="기술 스택">
-            <input
-              required
-              maxLength={200}
-              value={form.stack}
-              onChange={(e) => change('stack', e.target.value)}
-              placeholder="Unity · C# 또는 Java · React"
-            />
-          </Field>
-          <Field label="진행률 (%)">
-            <input
-              type="number"
-              min={0}
-              max={100}
-              required
-              value={form.progress}
-              onChange={(e) => change('progress', Number(e.target.value))}
-            />
-          </Field>
-          <Field label="프로젝트 목표 메모">
-            <input
-              maxLength={200}
-              value={form.milestone}
-              onChange={(e) => change('milestone', e.target.value)}
-            />
-          </Field>
-          <Field label="저장소 URL">
-            <input
-              type="url"
-              maxLength={2000}
-              value={form.repositoryUrl}
-              onChange={(e) => change('repositoryUrl', e.target.value)}
-            />
-          </Field>
-          <Field label="프로젝트 설명">
-            <textarea
-              rows={4}
-              maxLength={4000}
-              value={form.subtitle}
-              onChange={(e) => change('subtitle', e.target.value)}
-            />
-          </Field>
-        </div>
+        <ProjectFields
+          form={form}
+          onChange={(key, value) => setForm((current) => ({ ...current, [key]: value }))}
+        />
         {error && (
           <p className="notice" role="alert">
             {error}

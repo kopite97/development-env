@@ -1,16 +1,32 @@
 import { Code2 } from 'lucide-react';
 import { type ReactNode } from 'react';
-import { useWorkspace } from '../WorkspaceProvider';
 import { Button, Modal } from '../../shared/ui/controls';
-import { Sidebar } from './Sidebar';
-import { Topbar } from './Topbar';
 import { useMobileNavigation } from './useMobileNavigation';
-export function AppLayout({ children }: { children: ReactNode }) {
-  const { detail, closeDetail, entryKey } = useWorkspace();
+type MobileNavigation = ReturnType<typeof useMobileNavigation>;
+
+export function AppLayout({
+  children,
+  entryKey,
+  renderSidebar,
+  renderTopbar,
+  detail,
+  closeDetail = () => {},
+  sessionControls,
+  sessionNotice,
+}: {
+  children: ReactNode;
+  entryKey: string;
+  renderSidebar: (menu: MobileNavigation) => ReactNode;
+  renderTopbar: (menu: MobileNavigation) => ReactNode;
+  detail?: { title: string; body: string } | null;
+  closeDetail?: () => void;
+  sessionControls?: ReactNode;
+  sessionNotice?: ReactNode;
+}) {
   const menu = useMobileNavigation(entryKey);
   return (
     <div className="app-shell">
-      <Sidebar mobileNav={menu.isOpen} menuRef={menu.menuRef} onNavigate={menu.close} />
+      {renderSidebar(menu)}
       {menu.isOpen && (
         <button
           aria-label="메뉴 닫기"
@@ -21,16 +37,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
         />
       )}
       <div className="main-shell" inert={menu.isOpen}>
-        <Topbar onMenu={menu.open} menuOpen={menu.isOpen} menuRef={menu.triggerRef} />
+        {renderTopbar(menu)}
         <main>
+          {sessionNotice}
           {children}
           <footer className="page-footer">
             <span>
               <Code2 size={14} />
               Built for your next idea.
             </span>
-            <span>Devspace · 나만의 개발 작업실</span>
+            <span>devspace. · 나만의 개발 작업실</span>
           </footer>
+          {sessionControls}
         </main>
       </div>
       {detail && (

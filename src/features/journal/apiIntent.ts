@@ -1,6 +1,7 @@
 import { createBody, type JournalDraft } from './apiModel';
 
 export type JournalCreateIntent = {
+  readonly endpoint?: '/api/v1/journals' | '/api/v2/journals';
   readonly key: string;
   readonly body: Readonly<ReturnType<typeof createBody>>;
   readonly startedAt: number;
@@ -8,6 +9,7 @@ export type JournalCreateIntent = {
 
 export function createIntent(draft: JournalDraft, now = Date.now()): JournalCreateIntent {
   return Object.freeze({
+    endpoint: '/api/v2/journals',
     key: crypto.randomUUID(),
     body: Object.freeze(createBody(draft)),
     startedAt: now,

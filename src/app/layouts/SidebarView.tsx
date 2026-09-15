@@ -1,7 +1,7 @@
 import { Code2, Settings2, Sparkles } from 'lucide-react';
 import { navigationItems as navItems, type PageId } from '../navigation';
 import { Badge } from '../../shared/ui/controls';
-import type { Ref } from 'react';
+import type { Ref, ReactNode } from 'react';
 export function SidebarView({
   mobileNav,
   onNavigate,
@@ -13,6 +13,10 @@ export function SidebarView({
   counts,
   onProfile,
   avatar = 'N',
+  displayName = 'My workspace',
+  workspaceName = '나의 작업실',
+  onScopeNavigate,
+  development,
 }: {
   mobileNav: boolean;
   onNavigate: () => void;
@@ -20,10 +24,14 @@ export function SidebarView({
   page: PageId;
   navigate: (page: PageId) => void;
   editing?: boolean;
-  setFilter: (scope: 'unity' | 'server') => void;
-  counts: { all: number | string; unity: number | string; server: number | string };
+  setFilter?: (scope: 'unity' | 'server') => void;
+  counts: { all: number | string; unity?: number | string; server?: number | string };
+  development?: ReactNode;
   onProfile: () => void;
   avatar?: string;
+  displayName?: string;
+  workspaceName?: string;
+  onScopeNavigate?: (scope: 'unity' | 'server') => void;
 }) {
   return (
     <aside
@@ -55,7 +63,7 @@ export function SidebarView({
       <div className="workspace-switch">
         <span className="avatar">{avatar}</span>
         <span>
-          <strong>나의 작업실</strong>
+          <strong title={workspaceName}>{workspaceName}</strong>
           <small>Personal workspace</small>
         </span>
         <Badge>개인</Badge>
@@ -76,28 +84,34 @@ export function SidebarView({
         ))}
       </nav>
       <div className="nav-label area-label">DEVELOPMENT</div>
-      <button
-        className="nav-item"
-        onClick={() => {
-          navigate('프로젝트');
-          if (!editing) setFilter('unity');
-        }}
-      >
-        <span className="area-dot unity-dot" />
-        Unity 개발
-        <span className="nav-count">{counts.unity}</span>
-      </button>
-      <button
-        className="nav-item"
-        onClick={() => {
-          navigate('프로젝트');
-          if (!editing) setFilter('server');
-        }}
-      >
-        <span className="area-dot server-dot" />
-        서버 · 웹 개발
-        <span className="nav-count">{counts.server}</span>
-      </button>
+      {development ?? (
+        <>
+          <button
+            className="nav-item"
+            onClick={() => {
+              if (onScopeNavigate) return onScopeNavigate('unity');
+              navigate('프로젝트');
+              if (!editing) setFilter?.('unity');
+            }}
+          >
+            <span className="area-dot unity-dot" />
+            Unity 개발
+            <span className="nav-count">{counts.unity}</span>
+          </button>
+          <button
+            className="nav-item"
+            onClick={() => {
+              if (onScopeNavigate) return onScopeNavigate('server');
+              navigate('프로젝트');
+              if (!editing) setFilter?.('server');
+            }}
+          >
+            <span className="area-dot server-dot" />
+            서버 · 웹 개발
+            <span className="nav-count">{counts.server}</span>
+          </button>
+        </>
+      )}
       <div className="sidebar-bottom">
         <div className="workspace-note">
           <Sparkles size={18} />
@@ -111,7 +125,7 @@ export function SidebarView({
         <button className="profile" onClick={onProfile}>
           <span className="avatar">{avatar}</span>
           <span>
-            <strong>My workspace</strong>
+            <strong title={displayName}>{displayName}</strong>
             <small>개인 개발 공간</small>
           </span>
           <Settings2 size={16} />

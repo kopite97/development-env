@@ -158,7 +158,7 @@ export function Progress({ value, label }: { value: number; label: string }) {
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      <span style={{ width: `${value}%` }} />
+      <span style={{ width: '100%', transform: `scaleX(${value / 100})` }} />
     </div>
   );
 }

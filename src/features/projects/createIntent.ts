@@ -2,6 +2,7 @@ import { createBody, type ProjectDraft } from './apiModel';
 import type { CreateIntent } from './draftMemory';
 export function createIntent(draft: ProjectDraft, now = Date.now()): CreateIntent {
   return Object.freeze({
+    endpoint: '/api/v2/projects',
     key: crypto.randomUUID(),
     body: Object.freeze(createBody(draft)),
     startedAt: now,

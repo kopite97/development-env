@@ -179,6 +179,39 @@ export async function validateDashboard({ page, context, origin, sql, alice, out
   await expect(page.locator('.milestone')).toHaveCount(1);
   await expect(page.locator('.quick-links strong')).toHaveText('Dashboard link');
   await expect(page.getByText('실시간 연동 전 · 데모 데이터')).toBeVisible();
+  const viewRequests = [];
+  const observeView = (request) => viewRequests.push(new URL(request.url()));
+  page.on('request', observeView);
+  const otherProject = projects.at(-1);
+  await page.getByLabel('Home 프로젝트').selectOption(otherProject.id);
+  await expect(page.locator('.project-row')).toContainText(otherProject.name);
+  await expect(page.getByText('Dashboard task', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Dashboard journal', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Dashboard milestone', { exact: true })).toHaveCount(0);
+  for (const resource of ['overview', 'tasks', 'tasks/stats', 'journals', 'milestones'])
+    await expect
+      .poll(() =>
+        viewRequests.some(
+          (url) =>
+            url.pathname === '/api/v1/' + resource &&
+            url.searchParams.get('projectId') === otherProject.id &&
+            url.searchParams.get('scope') === 'all',
+        ),
+      )
+      .toBe(true);
+  await page.reload();
+  await expect(page.getByLabel('Home 프로젝트')).toHaveValue(otherProject.id);
+  await expect(page.locator('.project-row')).toContainText(otherProject.name);
+  await page.goto(origin + '/?projectId=' + selected.id);
+  await expect(page.getByLabel('Home 프로젝트')).toHaveValue(selected.id);
+  await expect(page.getByText('Dashboard task', { exact: true })).toBeVisible();
+  await expect(page.getByText('Dashboard journal', { exact: true })).toBeVisible();
+  await expect(page.getByText('Dashboard milestone', { exact: true })).toBeVisible();
+  await page.getByLabel('Home 프로젝트').selectOption('');
+  await expect(page.getByText('Dashboard task', { exact: true })).toBeVisible();
+  assert.deepEqual(await get(), saved);
+  assert.deepEqual(business(), snapshot);
+  page.off('request', observeView);
   // Widget editor independently resolves an archived Project outside the first options page.
   await page.getByRole('button', { name: '배치 편집', exact: true }).click();
   await page.getByRole('button', { name: '프로젝트 개요 설정', exact: true }).click();
@@ -198,6 +231,20 @@ export async function validateDashboard({ page, context, origin, sql, alice, out
   saved = await get();
   assert.equal(saved.revision, 3);
   assert.deepEqual(business(), snapshot);
+  await page.locator('.tabs').getByRole('button', { name: 'Unity 개발', exact: true }).click();
+  await expect(page.getByText('Dashboard task', { exact: true })).toBeVisible();
+  await expect(page.getByText('Dashboard journal', { exact: true })).toBeVisible();
+  await expect(page.getByText('Dashboard milestone', { exact: true })).toBeVisible();
+  await page.locator('.tabs').getByRole('button', { name: '서버 · 웹 개발', exact: true }).click();
+  await expect(page.locator('.project-row')).toHaveCount(11);
+  await expect(page.getByText('Dashboard task', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Dashboard journal', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Dashboard milestone', { exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.project-row')).toHaveCount(11);
+  await page.locator('.tabs').getByRole('button', { name: '전체 프로젝트', exact: true }).click();
+  await expect(page.getByText('Dashboard task', { exact: true })).toBeVisible();
+  assert.deepEqual(await get(), saved);
   // Real other-tab revision conflict preserves local removal and requires explicit reconciliation.
   await page.getByRole('button', { name: '배치 편집', exact: true }).click();
   await page.getByRole('button', { name: '바로가기 제거', exact: true }).click();

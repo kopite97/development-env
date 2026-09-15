@@ -1,0 +1,268 @@
+.login-workflow {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  min-height: 400px;
+  padding: 64px 56px;
+  background-color: var(--bg);
+  isolation: isolate;
+  overflow: hidden;
+}
+.login-development-stack {
+  width: 100%;
+  max-width: 720px;
+  min-width: 0;
+  margin: 36px auto 0;
+}
+.login-stack-categories {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: min(100%, 360px);
+  margin: 0 auto;
+  gap: 8px 16px;
+}
+.login-stack-category {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    transform var(--motion-standard) ease,
+    background-color var(--motion-standard) ease,
+    border-color var(--motion-standard) ease,
+    color var(--motion-standard) ease;
+}
+.login-stack-category:is(:hover, :focus-visible),
+.login-stack-category[data-preview='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .login-stack-category:hover {
+    transform: translateY(-1px);
+  }
+}
+.login-stack-category[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+.login-stack-lane {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 132px;
+  padding-bottom: 8px;
+}
+.login-stack-lane .login-workflow-technology {
+  width: 76px;
+  height: 84px;
+  grid-template-rows: 32px 1fr;
+  align-items: start;
+  gap: 8px;
+}
+.login-stack-technology-name {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 15px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.login-stack-lane [data-emphasis='planned'] img {
+  opacity: 0.5;
+}
+.login-stack-lane [data-emphasis='secondary'] img {
+  opacity: 0.75;
+}
+.login-stack-lane .login-workflow-technology:is(:hover, :focus-visible) img {
+  opacity: 1;
+}
+.login-workflow-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-bottom: 112px;
+}
+.login-workflow-track::before {
+  content: '';
+  position: absolute;
+  top: 27px;
+  left: 12.5%;
+  right: 12.5%;
+  height: 1px;
+  background: var(--border-strong);
+}
+.login-workflow-track::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  top: 27px;
+  left: 12.5%;
+  right: 12.5%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent var(--line-start),
+    var(--accent) var(--line-start),
+    var(--accent) var(--line-end),
+    transparent var(--line-end)
+  );
+  opacity: 0;
+  transition: opacity var(--motion-standard);
+}
+.login-workflow-track[data-active-stage]::after {
+  opacity: 1;
+  z-index: 0;
+}
+.login-workflow-track[data-active-stage='0'] {
+  --line-start: 0%;
+  --line-end: 33.333%;
+}
+.login-workflow-track[data-active-stage='1'] {
+  --line-start: 0%;
+  --line-end: 66.667%;
+}
+.login-workflow-track[data-active-stage='2'] {
+  --line-start: 33.333%;
+  --line-end: 100%;
+}
+.login-workflow-track[data-active-stage='3'] {
+  --line-start: 66.667%;
+  --line-end: 100%;
+}
+.login-workflow-node {
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-workflow-track::after {
+    transition: none;
+  }
+}
+.login-workflow-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.login-workflow-node {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-standard) ease,
+    background-color var(--motion-standard) ease,
+    border-color var(--motion-standard) ease;
+}
+.login-workflow-node[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.login-workflow-label {
+  font-family: var(--font-mono);
+  position: absolute;
+  bottom: calc(100% + 12px);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.login-workflow-node[aria-pressed='true'] + .login-workflow-label {
+  color: var(--text);
+}
+.login-workflow-technologies {
+  position: absolute;
+  top: 104px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+.login-workflow-icons {
+  display: flex;
+  gap: 12px;
+  animation: login-workflow-enter var(--motion-standard) ease-out;
+}
+.login-workflow-technology {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+.login-workflow-technology img {
+  display: block;
+  object-fit: contain;
+}
+.login-workflow-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  visibility: hidden;
+}
+.login-workflow-technology:not([data-dismissed='true']):is(:hover, :focus-visible)
+  .login-workflow-tooltip {
+  visibility: visible;
+}
+@keyframes login-workflow-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (max-width: 1023px) {
+  .login-workflow {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-stack-category {
+    transition: none;
+    transform: none;
+  }
+  .login-workflow-node {
+    transition: none;
+  }
+  .login-workflow-icons {
+    animation: none;
+  }
+}

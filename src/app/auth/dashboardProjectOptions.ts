@@ -4,17 +4,17 @@ import type { ProjectStore } from '../../features/projects/apiStore';
 import type { DashboardProjectOption } from '../../features/dashboard/projectOptions';
 import type { DashboardProjectOptions } from '../../features/dashboard/projectOptions';
 
-function option(project: { id: string; name: string; scope: 'unity' | 'server'; status: string }) {
+function option(project: { id: string; name: string; categoryId: string | null; status: string }) {
   return {
     id: project.id,
     name: project.name,
-    scope: project.scope,
+    categoryId: project.categoryId,
     archived: project.status === 'archived',
   } satisfies DashboardProjectOption;
 }
 
 export function dashboardProjectOptions(projects: ProjectStore): DashboardProjectOptions {
-  const allFilter = { scope: 'all', status: 'all', query: '' } as const;
+  const allFilter = { category: 'all', status: 'all', query: '' } as const;
   const allSource = projects.list(allFilter);
   const read = (
     source: typeof allSource,

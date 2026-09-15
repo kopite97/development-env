@@ -1,25 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '../../shared/http/query';
 import { Button } from '../../shared/ui/controls';
-import { WidgetEditorView } from './WidgetEditor';
-import { parseWidgets, dashboardText } from './apiModel';
+import { WidgetEditorView } from './WidgetEditorView';
+import { parseWidgets, dashboardText, writableWidgets } from './apiModel';
 import type { DashboardMemory, WidgetForm } from './draftMemory';
 import type { DashboardProjectOption, DashboardProjectOptions } from './projectOptions';
-import type { Widget } from './model';
+import type { Widget } from './apiModel';
+import type { CategoryOption } from '../projects/categoryFilter';
 export function ApiWidgetEditor({
   memory,
   options,
+  categories,
   onSave,
   onClose,
 }: {
   memory: DashboardMemory;
   options: DashboardProjectOptions;
+  categories: readonly CategoryOption[];
   onSave: (widget: Widget) => void;
   onClose: () => void;
 }) {
   const saved = memory.editor!.widget!;
   const [initial] = useState(saved);
-  const [selectedId, setSelectedId] = useState(saved.form.projectId);
+  const [selectedId, setSelectedId] = useState(
+    saved.form.selection.kind === 'project' ? saved.form.selection.projectId : undefined,
+  );
   const [selected, setSelected] = useState<DashboardProjectOption>();
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -29,7 +34,7 @@ export function ApiWidgetEditor({
     (form: WidgetForm) => {
       if (memory.editor?.widget) {
         memory.editor.widget.form = form;
-        setSelectedId(form.projectId);
+        setSelectedId(form.selection.kind === 'project' ? form.selection.projectId : undefined);
       }
     },
     [memory],
@@ -56,6 +61,7 @@ export function ApiWidgetEditor({
   if (selected) projects.set(selected.id, selected);
   return (
     <WidgetEditorView
+      categories={categories}
       normalizeTitle={dashboardText}
       unknownProjectLabel={failed ? '선택된 프로젝트 확인 불가' : '선택된 프로젝트 확인 중…'}
       existing={
@@ -67,7 +73,9 @@ export function ApiWidgetEditor({
           : undefined
       }
       restored={initial.form}
-      onDraftChange={update}
+      onDraftChange={(form) => {
+        if (form.selection) update({ ...form, selection: form.selection });
+      }}
       projects={[...projects.values()]}
       onClose={onClose}
       onSave={(w) => {
@@ -75,7 +83,7 @@ export function ApiWidgetEditor({
           const widgets = memory.editor!.draft.filter(
             (x) => x.id !== (initial.existing ? initial.form.id : ''),
           );
-          parseWidgets([...widgets, w]);
+          parseWidgets([...writableWidgets(widgets), w]);
           onSave(parseWidgets([w])[0]);
         } catch (error) {
           setNotice((error as Error).message);

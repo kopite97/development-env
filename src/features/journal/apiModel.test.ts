@@ -19,7 +19,7 @@ const dto = {
   title: '  Keep the title  ',
   projectId: '00000000-0000-0000-0000-000000000001',
   projectName: 'Journal Project',
-  scope: 'server',
+  categoryId: null,
   body: ' first line\n\nsecond line  ',
   entryDate: '2026-02-28',
 };
@@ -32,7 +32,7 @@ describe('server Journal DTO boundary', () => {
     expect(journal.body).toBe(dto.body);
     expect(presentation(journal)).toMatchObject({
       project: 'Journal Project',
-      scope: 'server',
+      categoryId: null,
       entryDate: '2026-02-28',
       body: dto.body,
     });

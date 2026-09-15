@@ -1,7 +1,8 @@
+import { parseCategoryFilter, type CategoryFilter } from '../projects/categoryFilter';
 import { CancelledError, HttpError } from '../../shared/http/client';
 import { Query } from '../../shared/http/query';
 import type { PrivateTransport } from '../../shared/http/transport';
-import { uuid } from '../../shared/http/validation';
+import { object, uuid } from '../../shared/http/validation';
 import {
   parseDeletedJournal,
   journalDate,
@@ -10,12 +11,11 @@ import {
   type ApiJournal,
   type JournalPage,
   type JournalProjectStatus,
-  type JournalScope,
   type JournalSort,
 } from './apiModel';
 
 export type JournalFilter = {
-  scope: JournalScope | 'all';
+  category: CategoryFilter;
   projectId?: string;
   projectStatus: JournalProjectStatus;
   query: string;
@@ -30,7 +30,7 @@ export function journalParams(filter: JournalFilter) {
   if (!Number.isInteger(filter.limit) || filter.limit < 1 || filter.limit > 100)
     throw new Error('Invalid Journal limit');
   const params = new URLSearchParams({
-    scope: filter.scope,
+    category: parseCategoryFilter(filter.category),
     projectStatus: filter.projectStatus,
     query: filter.query,
     sort: filter.sort,
@@ -89,7 +89,7 @@ export class JournalStore {
     const epoch = this.epoch;
     const params = journalParams(filter);
     if (cursor) params.set('cursor', cursor);
-    const page = await this.transport.request('/api/v1/journals?' + params, {
+    const page = await this.transport.request('/api/v2/journals?' + params, {
       signal,
       generation: this.transport.generation,
       expectedStatus: 200,
@@ -139,7 +139,7 @@ export class JournalStore {
     if (!query) {
       query = new Query<ApiJournal>(async (signal) => {
         const epoch = this.epoch;
-        const journal = await this.transport.request('/api/v1/journals/' + id, {
+        const journal = await this.transport.request('/api/v2/journals/' + id, {
           signal,
           generation: this.transport.generation,
           expectedStatus: 200,
@@ -165,7 +165,13 @@ export class JournalStore {
 
   async mutate(
     operation: 'create' | 'patch' | 'delete',
-    options: { id?: string; body?: unknown; revision?: number; key?: string },
+    options: {
+      endpoint?: '/api/v1/journals' | '/api/v2/journals';
+      id?: string;
+      body?: unknown;
+      revision?: number;
+      key?: string;
+    },
   ) {
     const target = options.id ?? 'create';
     if (this.pending.has(target)) throw new Error('Journal operation already pending');
@@ -174,11 +180,33 @@ export class JournalStore {
     if (operation !== 'create') uuid(options.id);
     this.pending.add(target);
     try {
-      let path = '/api/v1/journals' + (options.id ? '/' + options.id : '');
+      if (operation === 'create' && options.endpoint === '/api/v1/journals') {
+        const legacy = await this.transport.request('/api/v1/journals', {
+          method: 'POST',
+          json: options.body,
+          headers: { 'Idempotency-Key': options.key ?? '' },
+          generation: this.transport.generation,
+          signal: this.lifetime.signal,
+          expectedStatus: 201,
+          parse: (value) => ({ id: uuid(object(value).id) }),
+        });
+        this.transport.lifecycle.assert(this.transport.generation);
+        this.invalidate();
+        const detail = this.detail(legacy.id);
+        await detail.load();
+        this.transport.lifecycle.assert(this.transport.generation);
+        const state = detail.getSnapshot();
+        return {
+          journal: state.data,
+          confirmedId: legacy.id,
+          reconciled: state.status === 'ready',
+        };
+      }
+      let path = '/api/v2/journals' + (options.id ? '/' + options.id : '');
       if (operation === 'delete') path += '?revision=' + options.revision;
       if (operation === 'delete') {
         const deleted = await this.transport.request(
-          '/api/v1/journals/' + options.id + '?revision=' + options.revision,
+          '/api/v2/journals/' + options.id + '?revision=' + options.revision,
           {
             method: 'DELETE',
             generation: this.transport.generation,
@@ -208,16 +236,16 @@ export class JournalStore {
       if (options.id && options.id !== journal.id)
         throw new HttpError(200, 'PROTOCOL_ERROR', 'Journal identity mismatch');
       this.invalidate();
-      const saved = this.adopt(journal);
-      this.detail(saved.id).seed(saved);
       if (operation === 'create') {
-        const detail = this.detail(saved.id);
+        const detail = this.detail(journal.id);
         detail.invalidate();
         await detail.load();
         this.transport.lifecycle.assert(this.transport.generation);
         const state = detail.getSnapshot();
-        return { journal: state.data ?? saved, reconciled: state.status === 'ready' };
+        return { journal: state.data, reconciled: state.status === 'ready' };
       }
+      const saved = this.adopt(journal);
+      this.detail(saved.id).seed(saved);
       return { journal: saved, reconciled: true };
     } catch (error) {
       if (this.disposed || this.transport.generation !== this.transport.lifecycle.generation)

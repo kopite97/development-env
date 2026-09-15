@@ -18,7 +18,7 @@ export class DashboardStore {
   constructor(readonly transport: PrivateTransport) {
     this.home = new Query(async (signal) => {
       const epoch = this.epoch;
-      const data = await transport.request('/api/v1/dashboards/home', {
+      const data = await transport.request('/api/v2/dashboards/home', {
         signal,
         generation: transport.generation,
         expectedStatus: 200,
@@ -46,7 +46,7 @@ export class DashboardStore {
     const body = saveBody(intent.revision, intent.widgets);
     this.pending = true;
     try {
-      const result = await this.transport.request('/api/v1/dashboards/home', {
+      const result = await this.transport.request('/api/v2/dashboards/home', {
         method: 'PUT',
         json: body,
         generation: this.transport.generation,

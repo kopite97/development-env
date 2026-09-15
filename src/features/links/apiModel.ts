@@ -1,13 +1,15 @@
-import { count, object, oneOf, string, timestamp, uuid } from '../../shared/http/validation';
+import { count, object, string, timestamp, uuid } from '../../shared/http/validation';
 import { validUrl } from './model';
 
 export type LinkDraft = {
   label: string;
   description: string;
   url: string;
-  scope: 'all' | 'unity' | 'server';
+  projectId: string | null;
 };
 export type ApiLink = LinkDraft & {
+  projectName: string | null;
+  categoryId: string | null;
   id: string;
   revision: number;
   position: number;
@@ -24,7 +26,7 @@ export const linkDraft = (link?: ApiLink): LinkDraft => ({
   label: link?.label ?? '',
   description: link?.description ?? '',
   url: link?.url ?? '',
-  scope: link?.scope ?? 'all',
+  projectId: link?.projectId ?? null,
 });
 export function revision(value: unknown) {
   const n = count(value);
@@ -35,7 +37,7 @@ export function createBody(draft: LinkDraft): LinkDraft {
   const label = string(draft.label).trim();
   const url = string(draft.url).trim();
   const description = string(draft.description);
-  const scope = oneOf(draft.scope, ['all', 'unity', 'server'] as const);
+  const projectId = draft.projectId === null ? null : uuid(draft.projectId);
   if (
     !label ||
     label.length > 100 ||
@@ -46,7 +48,7 @@ export function createBody(draft: LinkDraft): LinkDraft {
     throw new Error(
       '이름과 올바른 http 또는 https URL을 입력해 주세요. 인증 정보가 포함된 URL은 사용할 수 없습니다.',
     );
-  return { label, description, url, scope };
+  return { label, description, url, projectId };
 }
 export function patchBody(baseline: ApiLink, draft: LinkDraft) {
   const values = createBody(draft);
@@ -54,7 +56,7 @@ export function patchBody(baseline: ApiLink, draft: LinkDraft) {
   if (values.label !== baseline.label) body.label = values.label;
   if (values.description !== baseline.description) body.description = values.description;
   if (values.url !== baseline.url) body.url = values.url;
-  if (values.scope !== baseline.scope) body.scope = values.scope;
+  if (values.projectId !== baseline.projectId) body.projectId = values.projectId;
   return body;
 }
 export function parseLink(value: unknown): ApiLink {
@@ -63,12 +65,14 @@ export function parseLink(value: unknown): ApiLink {
     label: string(v.label),
     description: string(v.description),
     url: string(v.url),
-    scope: oneOf(v.scope, ['all', 'unity', 'server'] as const),
+    projectId: v.projectId === null ? null : uuid(v.projectId),
   };
   createBody(draft);
   if (draft.label.length > 100 || draft.url.length > 2000) throw new Error('Invalid Link text');
   return {
     ...draft,
+    projectName: v.projectName === null ? null : string(v.projectName),
+    categoryId: v.categoryId === null ? null : uuid(v.categoryId),
     id: uuid(v.id),
     revision: revision(v.revision),
     position: count(v.position),

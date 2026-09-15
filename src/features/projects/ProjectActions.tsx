@@ -4,14 +4,19 @@ import type { ProjectStore } from './apiStore';
 import type { DraftMemory } from './draftMemory';
 import { ApiProjectEditor } from './ApiProjectEditor';
 import { CancelledError, HttpError } from '../../shared/http/client';
+import { Pencil } from 'lucide-react';
+import { Button } from '../../shared/ui/controls';
+import type { CategoryStore } from './categoryStore';
 export function ProjectActions({
   store,
+  categories,
   project,
   verified,
   memory,
   onSaved,
 }: {
   store: ProjectStore;
+  categories: CategoryStore;
   project: ApiProject;
   verified: boolean;
   memory: DraftMemory;
@@ -27,8 +32,8 @@ export function ProjectActions({
       !verified ||
       !window.confirm(
         project.status === 'active'
-          ? 'Archive this Project? Related resources remain preserved.'
-          : 'Restore this Project to active?',
+          ? '프로젝트를 보관할까요? 연결된 작업과 일지는 유지됩니다.'
+          : '프로젝트를 보관 해제할까요?',
       )
     )
       return;
@@ -41,8 +46,10 @@ export function ProjectActions({
         status: project.status === 'active' ? 'archived' : 'active',
       });
       store.transport.lifecycle.assert(store.transport.generation);
+      memory.editor = undefined;
+      setEditing(false);
       onSaved(saved);
-      setNotice('Project status saved.');
+      setNotice('프로젝트 보관 상태를 저장했습니다.');
     } catch (error) {
       if (
         store.transport.generation !== store.transport.lifecycle.generation ||
@@ -68,32 +75,27 @@ export function ProjectActions({
   };
   return (
     <>
-      {notice && <p role="alert">{notice}</p>}
-      {editing ? (
+      {!editing && notice && <p role="alert">{notice}</p>}
+      <Button disabled={!verified || busy} onClick={() => setEditing(true)}>
+        <Pencil size={16} />
+        프로젝트 편집
+      </Button>
+      {editing && (
         <ApiProjectEditor
+          categories={categories}
           store={store}
           memory={memory}
           project={project}
+          onArchive={verified ? () => void handleArchive() : undefined}
+          isArchiving={busy}
+          feedback={notice}
           onClose={() => setEditing(false)}
           onSaved={(saved) => {
             setEditing(false);
-            setNotice('Project saved.');
+            setNotice('프로젝트를 저장했습니다.');
             onSaved(saved);
           }}
         />
-      ) : (
-        <div className="project-toolbar">
-          <button disabled={!verified || busy} onClick={() => setEditing(true)}>
-            Edit Project
-          </button>
-          <button disabled={!verified || busy} onClick={() => void handleArchive()}>
-            {busy
-              ? 'Saving status…'
-              : project.status === 'active'
-                ? 'Archive Project'
-                : 'Unarchive Project'}
-          </button>
-        </div>
       )}
     </>
   );

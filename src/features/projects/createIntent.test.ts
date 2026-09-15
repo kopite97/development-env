@@ -1,6 +1,16 @@
 import { expect, it } from 'vitest';
 import { createIntent, retryBody } from './createIntent';
 import { projectDraft } from './apiModel';
+it('retains historical omitted bodies without inserting null during replay', () => {
+  const { categoryId: _categoryId, ...body } = createIntent({
+    ...projectDraft(),
+    name: 'Name',
+    stack: 'C#',
+  }).body;
+  const intent = { key: 'legacy-key', body: Object.freeze(body), startedAt: 100 };
+  expect(retryBody(intent, 101)).toBe(body);
+  expect(retryBody(intent, 101)).not.toHaveProperty('categoryId');
+});
 it('freezes the precise creation request and retains its key across retries, with a bounded replay window', () => {
   const draft = { ...projectDraft(), name: ' Raw name ', stack: 'C#' };
   const intent = createIntent(draft, 100);

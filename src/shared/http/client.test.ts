@@ -21,6 +21,51 @@ function setup(fetcher: typeof fetch) {
 }
 
 describe('HTTP response boundary', () => {
+  it('accepts only the explicit v1 and v2 API versions', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => json({ ok: true }));
+    const { request } = setup(fetcher);
+    await request('/api/v1/project-categories');
+    await request('/api/v2/projects');
+    for (const path of ['/api/v3/projects', '/api/v20/projects', '/api/v2/../me', '/api/v2/%2fme'])
+      await expect(request(path)).rejects.toMatchObject({ code: 'INVALID_TARGET' });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it('reports exact freshness only after successful DTO validation', async () => {
+    const response = () => {
+      const result = json({ ok: true });
+      result.headers.set('X-Workspace-Data-Revision', '90071992547409931234');
+      return result;
+    };
+    const { request } = setup(vi.fn<typeof fetch>().mockImplementation(async () => response()));
+    const onMetadata = vi.fn();
+    await request('/api/v2/projects', { onMetadata, parse: () => 'parsed' });
+    expect(onMetadata).toHaveBeenCalledWith({
+      workspaceRevision: '90071992547409931234',
+      generation: 0,
+    });
+    onMetadata.mockClear();
+    await expect(
+      request('/api/v2/projects', {
+        onMetadata,
+        parse: () => {
+          throw new Error();
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'PROTOCOL_ERROR' });
+    expect(onMetadata).not.toHaveBeenCalled();
+  });
+  it('does not publish metadata from a retired response', async () => {
+    const pending = deferred<Response>();
+    const { request, lifecycle } = setup(vi.fn<typeof fetch>().mockReturnValue(pending.promise));
+    const onMetadata = vi.fn();
+    const assertion = expect(request('/api/v2/projects', { onMetadata })).rejects.toBeInstanceOf(
+      CancelledError,
+    );
+    lifecycle.reset();
+    pending.resolve(json({}));
+    await assertion;
+    expect(onMetadata).not.toHaveBeenCalled();
+  });
   it('preserves JSON intent, headers and browser credentials', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ ok: true }));
     const { request } = setup(fetcher);

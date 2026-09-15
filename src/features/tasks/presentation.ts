@@ -4,7 +4,8 @@ export type TaskPresentation = {
   id: string;
   title: string;
   project: string;
-  scope: 'unity' | 'server';
+  scope?: 'unity' | 'server';
+  categoryId?: string | null;
   status: TaskStatus;
   priority: '높음' | '보통';
   tag: string;

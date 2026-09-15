@@ -18,7 +18,7 @@ export const dto = (changes: Record<string, unknown> = {}) => ({
   title: '목표',
   projectId: '00000000-0000-0000-0000-000000000001',
   projectName: '프로젝트',
-  scope: 'unity',
+  categoryId: null,
   dueDate: null,
   completed: false,
   ...changes,
@@ -45,7 +45,7 @@ describe('Milestone API boundary', () => {
       { revision: 9007199254740992 },
       { completed: 'done' },
       { dueDate: '' },
-      { scope: 'all' },
+      { categoryId: 'all' },
       { createdAt: 'today' },
       { title: ' ' },
     ])

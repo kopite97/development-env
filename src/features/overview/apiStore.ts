@@ -7,13 +7,13 @@ export class OverviewStore {
     transport.lifecycle.signal.addEventListener('abort', () => this.dispose(), { once: true });
   }
   query(filter: OverviewFilter) {
-    const key = JSON.stringify([filter.scope, filter.projectId ?? null]);
+    const key = JSON.stringify([filter.category, filter.projectId ?? null]);
     let query = this.queries.get(key);
     if (!query) {
-      const params = new URLSearchParams({ scope: filter.scope });
+      const params = new URLSearchParams({ category: filter.category });
       if (filter.projectId) params.set('projectId', filter.projectId);
       query = new Query<Overview>((signal) =>
-        this.transport.request('/api/v1/overview?' + params, {
+        this.transport.request('/api/v2/overview?' + params, {
           signal,
           generation: this.transport.generation,
           expectedStatus: 200,

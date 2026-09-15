@@ -12,12 +12,13 @@ export type SessionSnapshot = {
   busy: boolean;
   notice?: string;
   logoutBlocked?: boolean;
+  sessionCheck?: 'pending' | 'failed';
 };
 const identityKey = (identity: Identity) => identity.id + ':' + identity.workspace.id;
 
 export class AuthSession {
   readonly lifecycle = new Lifecycle();
-  readonly request;
+  readonly request: ReturnType<typeof createHttpClient>;
   private snapshot: SessionSnapshot = { state: { kind: 'checking' }, busy: false };
   private listeners = new Set<() => void>();
   private bootstrap?: Promise<void>;
@@ -31,10 +32,13 @@ export class AuthSession {
   private previousIdentity?: string;
   private retainCount = 0;
   private lastVerified = 0;
+  private lastResume = 0;
+  private background?: Promise<void>;
+  private backgroundController?: AbortController;
   private notify = () => {};
 
   constructor(fetcher?: typeof fetch) {
-    this.request = createHttpClient({
+    const request = createHttpClient({
       lifecycle: this.lifecycle,
       fetch: fetcher,
       getCsrfToken: (generation) => this.csrf(generation),
@@ -50,6 +54,24 @@ export class AuthSession {
         if (hadIdentity) this.notify();
       },
     });
+    this.request = async (path, options = {}) => {
+      const generation = options.generation ?? this.lifecycle.generation;
+      if (options.method && options.method !== 'GET' && path !== '/api/v1/auth/logout') {
+        if (this.background) await this.background;
+        else if (this.snapshot.sessionCheck === 'failed') await this.revalidate();
+        this.lifecycle.assert(generation);
+        if (this.snapshot.busy || this.snapshot.state.kind !== 'authenticated')
+          throw new CancelledError();
+        if (options.signal?.aborted) throw new CancelledError();
+        if (this.snapshot.sessionCheck === 'failed')
+          throw new HttpError(
+            409,
+            'SESSION_UNVERIFIED',
+            '세션을 확인하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.',
+          );
+      }
+      return request(path, { ...options, generation });
+    };
   }
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => {
@@ -66,10 +88,76 @@ export class AuthSession {
     for (const listener of this.listeners) listener();
   }
   private retire() {
+    this.cancelBackground();
     this.lifecycle.reset();
     this.bootstrap = undefined;
     this.token = undefined;
   }
+
+  private cancelBackground() {
+    this.backgroundController?.abort();
+    this.backgroundController = undefined;
+    this.background = undefined;
+  }
+
+  revalidate = (): Promise<void> => {
+    if (this.logoutWork) return this.logoutWork;
+    if (this.bootstrap) return this.bootstrap;
+    if (this.background) return this.background;
+    if (this.snapshot.state.kind !== 'authenticated') return this.verify();
+    const generation = this.lifecycle.generation;
+    const currentIdentity = identityKey(this.snapshot.state.identity);
+    const controller = new AbortController();
+    this.backgroundController = controller;
+    this.lastResume = Date.now();
+    this.publish({ ...this.snapshot, sessionCheck: 'pending' });
+    const work = Promise.resolve().then(async () => {
+      try {
+        const identity = await this.request('/api/v1/me', {
+          generation,
+          signal: controller.signal,
+          parse: parseIdentity,
+        });
+        this.lifecycle.assert(generation);
+        if (controller.signal.aborted) return;
+        this.lastVerified = Date.now();
+        if (currentIdentity !== identityKey(identity)) {
+          this.retire();
+          this.publish({ state: { kind: 'checking' }, busy: false });
+          this.previousIdentity = identityKey(identity);
+          this.recoveryUsed = false;
+          this.mutationRecoveryUsed = false;
+          this.logoutBlocked = false;
+          this.publish({
+            state: { kind: 'authenticated', identity, generation: this.lifecycle.generation },
+            busy: false,
+          });
+          this.notify();
+        } else {
+          this.publish({
+            ...this.snapshot,
+            state: { kind: 'authenticated', identity, generation },
+            sessionCheck: undefined,
+          });
+        }
+      } catch (error) {
+        if (
+          generation !== this.lifecycle.generation ||
+          controller.signal.aborted ||
+          error instanceof CancelledError
+        )
+          return;
+        this.publish({ ...this.snapshot, sessionCheck: 'failed' });
+      } finally {
+        if (this.background === work) {
+          this.background = undefined;
+          this.backgroundController = undefined;
+        }
+      }
+    });
+    this.background = work;
+    return work;
+  };
 
   verify = (): Promise<void> => this.logoutWork ?? this.verifySession();
   private verifySession(): Promise<void> {
@@ -165,9 +253,10 @@ export class AuthSession {
     if (this.logoutWork) return this.logoutWork;
     if (this.snapshot.state.kind !== 'authenticated' || this.logoutBlocked)
       return Promise.resolve();
+    this.cancelBackground();
     const identity = identityKey(this.snapshot.state.identity);
     const generation = this.lifecycle.generation;
-    this.publish({ ...this.snapshot, busy: true, notice: undefined });
+    this.publish({ ...this.snapshot, busy: true, notice: undefined, sessionCheck: undefined });
     const work = Promise.resolve().then(async () => {
       let dispatched = false;
       try {
@@ -291,7 +380,10 @@ export class AuthSession {
     this.publish({ state: { kind: 'checking' }, busy: false });
   };
   resume = (force = false) => {
-    if (!this.snapshot.busy && (force || Date.now() - this.lastVerified > 1000)) void this.verify();
+    if (this.snapshot.busy) return;
+    if (force || this.snapshot.state.kind !== 'authenticated') void this.verify();
+    else if (Date.now() - Math.max(this.lastVerified, this.lastResume) > 30_000)
+      void this.revalidate();
   };
   retain() {
     this.retainCount++;

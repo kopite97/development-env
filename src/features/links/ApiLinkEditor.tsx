@@ -6,14 +6,17 @@ import { createBody, linkDraft, patchBody, type ApiLink, type LinkDraft } from '
 import { createIntent, retryBody } from './apiIntent';
 import type { LinkEditorMemory, LinkMemory } from './draftMemory';
 import type { LinkStore } from './apiStore';
+import { ProjectPicker, type LinkProjectOptions } from './ProjectPicker';
 
 export function ApiLinkEditor({
   store,
+  options,
   memory,
   onClose,
   onSaved,
 }: {
   store: LinkStore;
+  options: LinkProjectOptions;
   memory: LinkMemory;
   onClose: () => void;
   onSaved: () => void;
@@ -76,7 +79,7 @@ export function ApiLinkEditor({
   const save = async () => {
     if (pending.current || editor.review) return;
     try {
-      createBody(editor.draft);
+      if (!editor.intent) createBody(editor.draft);
     } catch (error) {
       setNotice((error as Error).message);
       return;
@@ -95,7 +98,11 @@ export function ApiLinkEditor({
       } else {
         const intent = editor.intent ?? createIntent(editor.draft);
         update({ ...editor, intent });
-        const result = await store.mutate('create', { body: retryBody(intent), key: intent.key });
+        const result = await store.mutate('create', {
+          body: retryBody(intent),
+          key: intent.key,
+          endpoint: intent.endpoint ?? '/api/v1/links',
+        });
         if (!current()) return;
         if (result.reconciled) done();
         else {
@@ -108,6 +115,10 @@ export function ApiLinkEditor({
     } catch (error) {
       if (!current() || error instanceof CancelledError) return;
       const code = error instanceof HttpError ? error.code : '';
+      if (error instanceof HttpError && code === 'SESSION_UNVERIFIED') {
+        setNotice(error.message);
+        return;
+      }
       setNotice(
         code === 'REVISION_CONFLICT'
           ? '다른 곳에서 변경되었습니다. 최신 내용과 내 입력을 검토해 주세요.'
@@ -142,14 +153,14 @@ export function ApiLinkEditor({
     const draft = linkDraft(latest);
     if (keep) {
       const changes = patchBody(editor.baseline, editor.draft);
-      for (const key of ['label', 'description', 'url', 'scope'] as const)
+      for (const key of ['label', 'description', 'url', 'projectId'] as const)
         if (key in changes) Object.assign(draft, { [key]: editor.draft[key] });
     }
     update({ baseline: latest, draft });
     setLatest(undefined);
     setNotice('최신 상태를 반영했습니다. 검토 후 저장해 주세요.');
   };
-  const change = (key: keyof LinkDraft, value: string) =>
+  const change = (key: keyof LinkDraft, value: string | null) =>
     update({ ...editor, draft: { ...editor.draft, [key]: value } });
   return (
     <Modal title={editor.baseline ? '링크 편집' : '링크 추가'} onClose={close}>
@@ -184,13 +195,11 @@ export function ApiLinkEditor({
               onChange={(e) => change('description', e.target.value)}
             />
           </Field>
-          <Field label="표시 범위">
-            <select value={editor.draft.scope} onChange={(e) => change('scope', e.target.value)}>
-              <option value="all">공통</option>
-              <option value="unity">Unity 개발</option>
-              <option value="server">서버 · 웹 개발</option>
-            </select>
-          </Field>
+          <ProjectPicker
+            options={options}
+            value={editor.draft.projectId}
+            onChange={(id) => change('projectId', id)}
+          />
         </fieldset>
         {notice && (
           <p className="notice" role="alert">
@@ -210,11 +219,12 @@ export function ApiLinkEditor({
             {latest && (
               <>
                 <p>
-                  최신 내용: {latest.label} · {latest.url} · {latest.description} · {latest.scope}
+                  최신 내용: {latest.label} · {latest.url} · {latest.description} ·{' '}
+                  {latest.projectName ?? '연결 없음'}
                 </p>
                 <p>
                   내 입력: {editor.draft.label} · {editor.draft.url} · {editor.draft.description} ·{' '}
-                  {editor.draft.scope}
+                  {editor.draft.projectId ? '프로젝트 연결' : '연결 없음'}
                 </p>
                 {editor.confirmedId ? (
                   <Button type="button" onClick={done}>
