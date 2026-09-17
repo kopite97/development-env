@@ -2,6 +2,7 @@
 export type TaskStatus = 'todo' | 'doing' | 'done';
 export type TaskPresentation = {
   id: string;
+  revision?: number;
   title: string;
   project: string;
   scope?: 'unity' | 'server';

@@ -1,0 +1,31 @@
+{
+  "measuredAt": "2026-09-16T08:14:34.591Z",
+  "frontendCommit": "1a2a440303733dd8a7e40f6dc842675b4ec599bb",
+  "backendMainSha256": "51d8c1a418660e170d848f9ca6e7fa9d2c236e9e7b55ed15ddfa3c7858641707",
+  "node": "v24.14.0",
+  "browser": "153.0.8010.12",
+  "os": "Windows_NT 10.0.26200",
+  "cpu": "13th Gen Intel(R) Core(TM) i5-1335U",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "api": "http://127.0.0.1:18080",
+  "origin": "http://127.0.0.1:4175",
+  "production": true,
+  "database": "PostgreSQL 16.4 disposable Testcontainers",
+  "fixture": {
+    "users": 1,
+    "categories": 3,
+    "projects": 25,
+    "tasks": 30,
+    "journals": 3,
+    "milestones": 0,
+    "links": 1
+  },
+  "warmupPasses": 1,
+  "measuredPasses": 10,
+  "throttling": "none; loopback; sequential browser contexts",
+  "cache": "New browser context and document per pass; same document for in-app revisits; business responses no-store",
+  "authentication": "Real backend session with local test OIDC provider; credentials and storageState are never written"
+}

@@ -96,7 +96,7 @@ export function createHttpClient(deps: {
     deps.lifecycle.assert(generation);
     // Encoded path separators and dot segments must not escape the API root.
     if (
-      !/^\/api\/v(?:1|2)\//.test(path) ||
+      !/^\/api\/v(?:1|2|3)\//.test(path) ||
       /[\\#\s]/.test(path) ||
       /%(?:2e|2f|5c|25)/i.test(path.split('?')[0]) ||
       path.split('?')[0].split('/').includes('..')

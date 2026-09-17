@@ -22,6 +22,7 @@ export function WidgetEditorView({
   feedback,
   normalizeTitle = (value: string) => value.trim(),
   unknownProjectLabel = '없는 프로젝트',
+  typeImmutable = false,
   categories,
 }: {
   existing?: ViewWidget;
@@ -32,6 +33,7 @@ export function WidgetEditorView({
   feedback?: ReactNode;
   normalizeTitle?: (value: string) => string;
   unknownProjectLabel?: string;
+  typeImmutable?: boolean;
   onSave: (widget: ViewWidget) => void;
   onClose: () => void;
 }) {
@@ -114,6 +116,7 @@ export function WidgetEditorView({
                 type="button"
                 className={`catalog-item ${type === key ? 'selected' : ''}`}
                 key={key}
+                disabled={typeImmutable && !!existing}
                 onClick={() => {
                   setType(key);
                   setTitle(info.title);

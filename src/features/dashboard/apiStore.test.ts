@@ -1,13 +1,34 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Lifecycle, createHttpClient } from '../../shared/http/client';
 import { DashboardStore } from './apiStore';
-import { serverDefaultWidgets, saveBody } from './apiModel';
-const dto = (revision = 0, widgets = serverDefaultWidgets()) => ({
-  id: 'home',
-  schemaVersion: 2,
-  revision,
-  widgets: widgets.map((widget) => ({ ...widget, selectionState: 'valid' })),
+import { parseWidgetSnapshot, parseWidgets, saveBody, type Widget } from './apiModel';
+
+const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const id2 = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+const snapshot = (widgetId = id, title = '제목') => ({
+  id: widgetId,
+  type: 'overview',
+  title,
+  configVersion: 1,
+  revision: 1,
+  config: { selection: { kind: 'all' } },
+  referenceState: 'valid',
+  createdAt: '2026-09-17T00:00:00Z',
+  updatedAt: '2026-09-17T00:00:00Z',
 });
+const home = (layoutRevision = 1, widgets = [snapshot()]) => ({
+  id: 'home',
+  schemaVersion: 3,
+  initialized: true,
+  layoutRevision,
+  placements: widgets.map((widget, index) => ({
+    id: index ? id2 : id,
+    widgetId: widget.id,
+    size: 'medium',
+  })),
+  widgets,
+});
+
 function make(fetcher: typeof fetch) {
   const lifecycle = new Lifecycle();
   return new DashboardStore({
@@ -17,90 +38,211 @@ function make(fetcher: typeof fetch) {
     request: createHttpClient({ lifecycle, fetch: fetcher, getCsrfToken: async () => 'csrf' }),
   });
 }
-describe('Dashboard server authority', () => {
-  it('GET has no query or implicit save and first explicit PUT omits response fields and idempotency', async () => {
+
+describe('Dashboard v3 / Widget v1 store', () => {
+  it('reads v3 Home and explicit initialization uses the v3 initialization endpoint', async () => {
     const calls: { path: string; options?: RequestInit }[] = [];
-    const store = make(async (p, o) => {
-      calls.push({ path: String(p), options: o });
-      return Response.json(dto(o?.method === 'PUT' ? 1 : 0));
+    const store = make(async (path, options) => {
+      calls.push({ path: String(path), options });
+      return String(path).includes('/initializations')
+        ? Response.json(home(1), { status: 201 })
+        : Response.json({
+            id: 'home',
+            schemaVersion: 3,
+            initialized: false,
+            layoutRevision: 0,
+            placements: [],
+            widgets: [],
+          });
     });
-    const saved = vi.fn();
-    store.onSaved = saved;
     await store.home.load();
+    expect(store.home.getSnapshot().data?.initialized).toBe(false);
+    await store.initialize();
+    expect(calls[0].path).toBe('/api/v3/dashboards/home');
+    expect(calls[1].path).toBe('/api/v3/dashboards/home/initializations');
+    expect(new Headers(calls[1].options?.headers).get('Idempotency-Key')).toBeTruthy();
+    expect(JSON.parse(String(calls[1].options?.body))).toEqual({
+      schemaVersion: 3,
+      layoutRevision: 0,
+    });
+  });
+
+  it('creates a Widget configuration before saving its placement', async () => {
+    const calls: { path: string; options?: RequestInit }[] = [];
+    const store = make(async (path, options) => {
+      calls.push({ path: String(path), options });
+      if (String(path) === '/api/v3/dashboards/home' && options?.method === 'PUT')
+        return Response.json({
+          id: 'home',
+          schemaVersion: 3,
+          initialized: true,
+          layoutRevision: 2,
+          placements: [{ id: id2, widgetId: id, size: 'wide' }],
+          widgets: [snapshot()],
+        });
+      if (String(path) === '/api/v1/widgets') return Response.json(snapshot(), { status: 201 });
+      return Response.json(home(1));
+    });
     await store.home.load();
-    expect(calls).toHaveLength(2);
-    await store.save(saveBody(0, serverDefaultWidgets()));
-    expect(calls.map((c) => c.path)).toEqual(Array(3).fill('/api/v2/dashboards/home'));
-    expect(JSON.parse(String(calls[2].options?.body))).toEqual(saveBody(0, serverDefaultWidgets()));
-    expect(new Headers(calls[2].options?.headers).get('Idempotency-Key')).toBeNull();
-    expect(store.home.getSnapshot().data?.revision).toBe(1);
-    expect(saved).toHaveBeenCalledTimes(1);
-  });
-  it('does not replay conflicts or network failures and retains confirmed configuration as stale', async () => {
-    for (const failure of [Response.json({ code: 'REVISION_CONFLICT' }, { status: 409 }), null]) {
-      let writes = 0;
-      const store = make(async (_p, o) => {
-        if (o?.method === 'PUT') {
-          writes++;
-          if (failure) return failure;
-          throw new TypeError('lost');
-        }
-        return Response.json(dto(4));
-      });
-      await store.home.load();
-      await expect(store.save(saveBody(4, []))).rejects.toThrow();
-      expect(writes).toBe(1);
-      expect(store.home.getSnapshot().data?.revision).toBe(4);
-      expect(store.home.getSnapshot().stale).toBe(true);
-    }
-  });
-  it('rejects malformed, mismatched and nonadvancing acknowledgments', async () => {
-    for (const result of [dto(2), dto(3, []), { ...dto(3), id: 'other' }]) {
-      const store = make(async () => Response.json(result));
-      await expect(store.save(saveBody(2, serverDefaultWidgets()))).rejects.toThrow();
-      expect(store.home.getSnapshot().data).toBeUndefined();
-    }
-  });
-  it('retires in-flight reads after a save even if fetch ignores cancellation', async () => {
-    let finish!: (r: Response) => void;
-    const store = make(async (_p, o) =>
-      o?.method === 'PUT'
-        ? Response.json(dto(1, []))
-        : new Promise((resolve) => {
-            finish = resolve;
-          }),
+    const [draft] = parseWidgets([
+      {
+        id: 'draft-widget',
+        type: 'overview',
+        title: '새 위젯',
+        size: 'wide',
+        selection: { kind: 'all' },
+      },
+    ]);
+    await store.save({ layoutRevision: 1, widgets: [draft] });
+    expect(calls.map((call) => call.path)).toEqual([
+      '/api/v3/dashboards/home',
+      '/api/v1/widgets',
+      '/api/v3/dashboards/home',
+    ]);
+    expect(JSON.parse(String(calls[1].options?.body))).toMatchObject({
+      type: 'overview',
+      config: { selection: { kind: 'all' } },
+    });
+    expect(JSON.parse(String(calls[2].options?.body))).toEqual(
+      saveBody(1, [{ ...draft, id, size: 'wide' }]),
     );
-    const read = store.home.load();
-    await new Promise((r) => setTimeout(r, 0));
-    await store.save(saveBody(0, []));
-    finish(Response.json(dto()));
-    await read;
-    expect(store.home.getSnapshot().data).toEqual(dto(1, []));
   });
-  it('blocks overlapping saves and never publishes a disposed session acknowledgment', async () => {
-    let finish!: (r: Response) => void;
-    const store = make(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve;
-        }),
-    );
-    const write = store.save(saveBody(0, []));
-    await new Promise((r) => setTimeout(r, 0));
-    await expect(store.save(saveBody(0, []))).rejects.toThrow();
-    store.dispose();
-    finish(Response.json(dto(1, [])));
-    await expect(write).rejects.toThrow();
-    expect(store.home.getSnapshot().data).toBeUndefined();
+
+  it('reuses an unplaced Widget without creating a duplicate', async () => {
+    const calls: { path: string; options?: RequestInit }[] = [];
+    const unplacedSnapshot = snapshot(id2, '미배치');
+    const unplaced = { ...parseWidgetSnapshot(unplacedSnapshot), size: 'medium' as const };
+    const store = make(async (path, options) => {
+      calls.push({ path: String(path), options });
+      if (String(path) === '/api/v1/widgets?unplaced=true&limit=100')
+        return Response.json({ items: [unplacedSnapshot], nextCursor: null });
+      if (options?.method === 'PUT' && String(path) === '/api/v3/dashboards/home')
+        return Response.json(home(2, [unplacedSnapshot]));
+      return Response.json(home(1));
+    });
+    await store.home.load();
+    await store.available.load();
+    await store.save({ layoutRevision: 1, widgets: [{ ...unplaced, size: 'wide' }] });
+    expect(calls.map((call) => call.path)).toEqual([
+      '/api/v3/dashboards/home',
+      '/api/v1/widgets?unplaced=true&limit=100',
+      '/api/v3/dashboards/home',
+    ]);
   });
-  it('rejects a lower revision read after confirmed authority', async () => {
-    let response = dto(5);
-    const store = make(async () => Response.json(response));
+
+  it('updates a Widget independently and keeps layout revision in the Dashboard request', async () => {
+    const calls: { path: string; options?: RequestInit }[] = [];
+    const store = make(async (path, options) => {
+      calls.push({ path: String(path), options });
+      if (options?.method === 'PUT' && String(path).includes('/widgets/'))
+        return Response.json({ ...snapshot(id, '수정'), revision: 2 });
+      if (options?.method === 'PUT')
+        return Response.json(home(3, [{ ...snapshot(id, '수정'), revision: 2 }]));
+      return Response.json(home(2));
+    });
     await store.home.load();
-    response = dto(4);
-    store.invalidate();
+    const current = store.home.getSnapshot().data!.widgets[0];
+    await store.save({ layoutRevision: 2, widgets: [{ ...current, title: '수정', size: 'wide' }] });
+    expect(calls.map((call) => call.path)).toEqual([
+      '/api/v3/dashboards/home',
+      '/api/v1/widgets/' + id,
+      '/api/v3/dashboards/home',
+    ]);
+    expect(JSON.parse(String(calls[1].options?.body))).toMatchObject({
+      revision: 1,
+      title: '수정',
+    });
+    expect(JSON.parse(String(calls[2].options?.body))).toMatchObject({
+      layoutRevision: 2,
+      schemaVersion: 3,
+    });
+  });
+
+  it('does not save against a stale layout revision or overlap mutations', async () => {
+    let resolveSave!: (response: Response) => void;
+    const store = make(async (_path, options) => {
+      if (options?.method === 'PUT')
+        return new Promise<Response>((resolve) => {
+          resolveSave = resolve;
+        });
+      return Response.json(home(4));
+    });
     await store.home.load();
-    expect(store.home.getSnapshot().status).toBe('error');
-    expect(store.home.getSnapshot().data?.revision).toBe(5);
+    const widget = store.home.getSnapshot().data!.widgets[0];
+    await expect(store.save({ layoutRevision: 3, widgets: [widget] })).rejects.toMatchObject({
+      code: 'REVISION_CONFLICT',
+    });
+    const pending = store.save({ layoutRevision: 4, widgets: [widget] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await expect(store.save({ layoutRevision: 4, widgets: [widget] })).rejects.toThrow();
+    resolveSave(Response.json(home(5)));
+    await pending;
+  });
+
+  it('deletes only an unplaced Widget with its captured revision', async () => {
+    const calls: { path: string; options?: RequestInit }[] = [];
+    const store = make(async (path, options) => {
+      calls.push({ path: String(path), options });
+      if (options?.method === 'DELETE') return Response.json({ id });
+      return Response.json(home(1));
+    });
+    const widget = {
+      ...parseWidgets([
+        { id: 'draft', type: 'overview', title: '초안', size: 'small', selection: { kind: 'all' } },
+      ])[0],
+      id,
+      revision: 3,
+    };
+    await expect(store.deleteWidget(widget)).resolves.toEqual({ id });
+    expect(calls[0].path).toBe('/api/v1/widgets/' + id + '?revision=3');
+    expect(calls[0].options?.method).toBe('DELETE');
+  });
+
+  it('reads typed Widget data envelopes and rejects a response for another Widget', async () => {
+    const store = make(async (path) => {
+      if (String(path).endsWith('/data'))
+        return Response.json({
+          widgetId: id,
+          type: 'overview',
+          configRevision: 1,
+          configVersion: 1,
+          payloadVersion: 1,
+          availability: 'empty',
+          freshness: 'current',
+          readAt: '2026-09-17T00:00:00Z',
+          sourceObservedAt: null,
+          lastSuccessfulSyncAt: null,
+          data: { kind: 'overview', projects: [], tasks: { todo: 0, doing: 0, done: 0, total: 0 } },
+          page: null,
+          problem: null,
+        });
+      return Response.json(home(1));
+    });
+    const data = store.widgetData(id);
+    await data.load();
+    expect(data.getSnapshot().data?.data).toMatchObject({ kind: 'overview' });
+
+    const wrong = make(async (path) => {
+      if (String(path).endsWith('/data'))
+        return Response.json({
+          widgetId: id2,
+          type: 'overview',
+          configRevision: 1,
+          configVersion: 1,
+          payloadVersion: 1,
+          availability: 'empty',
+          freshness: 'current',
+          readAt: '2026-09-17T00:00:00Z',
+          sourceObservedAt: null,
+          lastSuccessfulSyncAt: null,
+          data: { kind: 'overview', projects: [], tasks: { todo: 0, doing: 0, done: 0, total: 0 } },
+          page: null,
+          problem: null,
+        });
+      return Response.json(home(1));
+    });
+    const wrongData = wrong.widgetData(id);
+    await wrongData.load();
+    expect(wrongData.getSnapshot().status).toBe('error');
   });
 });

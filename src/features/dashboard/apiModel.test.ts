@@ -1,102 +1,133 @@
-import { describe, it, expect } from 'vitest';
-import { parseDashboard, parseWidgets, saveBody, serverDefaultWidgets } from './apiModel';
-const widget = () => ({
-  id: 'a',
-  type: 'overview',
+import { describe, expect, it } from 'vitest';
+import {
+  createWidgetBody,
+  parseDashboard,
+  parseWidgets,
+  saveBody,
+  serverDefaultWidgets,
+  updateWidgetBody,
+  writableWidgets,
+} from './apiModel';
+
+const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const id2 = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+const snapshot = (widgetId = id, type = 'overview', selection = { kind: 'all' }) => ({
+  id: widgetId,
+  type,
   title: '제목',
-  selection: { kind: 'all' },
-  size: 'small',
+  configVersion: 1,
+  revision: 1,
+  config: { selection },
+  referenceState: 'valid',
+  createdAt: '2026-09-17T00:00:00Z',
+  updatedAt: '2026-09-17T00:00:00Z',
 });
-describe('Dashboard contract boundary', () => {
-  it('accepts virtual and saved empty dashboards without replacing them', () => {
-    for (const revision of [0, 2, Number.MAX_SAFE_INTEGER])
-      expect(
-        parseDashboard({ id: 'home', schemaVersion: 2, revision, widgets: [] }).widgets,
-      ).toEqual([]);
+
+describe('Dashboard v3 and Widget v1 contract boundary', () => {
+  it('parses an uninitialized Dashboard without inventing defaults', () => {
+    expect(
+      parseDashboard({
+        id: 'home',
+        schemaVersion: 3,
+        initialized: false,
+        layoutRevision: 0,
+        placements: [],
+        widgets: [],
+      }),
+    ).toMatchObject({ initialized: false, layoutRevision: 0, widgets: [] });
   });
-  it('normalizes Java trim, canonical UUID and Project selection without inventing a limit', () => {
-    const widgets = parseWidgets([
+
+  it('joins placement size/order with independent Widget snapshots', () => {
+    const dashboard = parseDashboard({
+      id: 'home',
+      schemaVersion: 3,
+      initialized: true,
+      layoutRevision: 4,
+      placements: [
+        { id: id2, widgetId: id2, size: 'wide' },
+        { id, widgetId: id, size: 'small' },
+      ],
+      widgets: [snapshot(id), snapshot(id2, 'board')],
+    });
+    expect(dashboard.widgets.map((widget) => [widget.id, widget.size])).toEqual([
+      [id2, 'wide'],
+      [id, 'small'],
+    ]);
+  });
+
+  it('builds separate Widget configuration and Dashboard placement bodies', () => {
+    const [widget] = parseWidgets([
       {
-        ...widget(),
-        id: ' a ',
+        id,
+        type: 'board',
         title: ' 제목 ',
-        selection: { kind: 'project', projectId: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA' },
+        size: 'wide',
+        selection: { kind: 'project', projectId: id },
+        limit: 10,
       },
     ]);
-    expect(saveBody(0, widgets)).toEqual({
-      schemaVersion: 2,
-      revision: 0,
-      widgets: [
-        {
-          ...widget(),
-          selection: { kind: 'project', projectId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' },
-        },
-      ],
+    expect(createWidgetBody(widget)).toEqual({
+      type: 'board',
+      title: '제목',
+      configVersion: 1,
+      config: { selection: { kind: 'project', projectId: id }, limit: 10 },
+    });
+    expect(updateWidgetBody({ ...widget, revision: 3 })).toMatchObject({ revision: 3 });
+    expect(saveBody(4, [widget])).toEqual({
+      schemaVersion: 3,
+      layoutRevision: 4,
+      placements: [{ widgetId: id, size: 'wide' }],
     });
   });
-  it('keeps repeated types and has no invented count or ID length cap', () => {
-    expect(
-      parseWidgets(
-        Array.from({ length: 101 }, (_, n) => ({ ...widget(), id: 'x'.repeat(1000) + n })),
-      ),
-    ).toHaveLength(101);
-  });
-  it('enforces supported schema, exact fields, safe revisions, optional omission and discriminants', () => {
-    const base = { id: 'home', schemaVersion: 2, revision: 0, widgets: [widget()] };
-    for (const patch of [
-      { id: 'other' },
-      { schemaVersion: 1 },
-      { revision: -1 },
-      { revision: 1.5 },
-      { revision: Number.MAX_SAFE_INTEGER + 1 },
-      { createdAt: '2026-09-14' },
-    ])
-      expect(() => parseDashboard({ ...base, ...patch })).toThrow();
-    for (const patch of [
-      { projectId: null },
-      { limit: null },
-      { limit: 0 },
-      { limit: 21 },
-      { type: 'unknown' },
-      { status: 'open' },
-      { size: 'large' },
-      { title: 'a'.repeat(49) },
-      { id: '　' },
-      { title: '　' },
-      { type: 'links', limit: 1 },
-      { type: 'deploy', projectId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' },
-    ])
-      expect(() => parseWidgets([{ ...widget(), ...patch }])).toThrow();
-    expect(() => parseWidgets([widget(), { ...widget(), id: ' a ' }])).toThrow();
+
+  it('rejects invalid references, versions, duplicate placements and unavailable config', () => {
+    const base = {
+      id: 'home',
+      schemaVersion: 3,
+      initialized: true,
+      layoutRevision: 1,
+      placements: [{ id, widgetId: id, size: 'medium' }],
+      widgets: [snapshot()],
+    };
+    expect(() => parseDashboard({ ...base, schemaVersion: 2 })).toThrow();
+    expect(() =>
+      parseDashboard({ ...base, placements: [{ id, widgetId: id2, size: 'medium' }] }),
+    ).toThrow();
     expect(() =>
       parseDashboard({
         ...base,
-        widgets: [
-          { ...widget(), projectId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', scope: 'unity' },
-        ],
+        widgets: [snapshot(id, 'deploy', { kind: 'project', projectId: id } as never)],
       }),
     ).toThrow();
-  });
-  it('owns one reset template with the exact schema-2 fields and fresh draft copies', () => {
-    expect(
-      serverDefaultWidgets().map((w) => [
-        w.id,
-        w.type,
-        w.title,
-        w.selection.kind,
-        w.size,
-        Object.keys(w).length,
+    expect(() =>
+      parseWidgets([
+        { id, type: 'links', title: '링크', size: 'small', selection: { kind: 'all' }, limit: 1 },
       ]),
-    ).toEqual([
-      ['home-overview', 'overview', '프로젝트 개요', 'all', 'wide', 5],
-      ['home-board', 'board', '작업 보드', 'all', 'wide', 5],
-      ['home-deploy', 'deploy', '운영', 'all', 'medium', 5],
-      ['home-links', 'links', '바로가기', 'all', 'small', 5],
-      ['home-journal', 'journal', '개발 일지', 'all', 'medium', 5],
-      ['home-milestone', 'milestone', '마일스톤', 'all', 'medium', 5],
-    ]);
-    const copy = serverDefaultWidgets();
-    copy[0].title = 'changed';
+    ).toThrow();
+  });
+
+  it('keeps the explicit six-widget template local and copyable', () => {
+    const widgets = serverDefaultWidgets();
+    expect(widgets).toHaveLength(6);
+    expect(widgets.every((widget) => widget.revision === undefined)).toBe(true);
+    widgets[0].title = '변경';
     expect(serverDefaultWidgets()[0].title).toBe('프로젝트 개요');
+  });
+
+  it('strips server-owned Widget metadata before comparing or validating drafts', () => {
+    const [widget] = parseWidgets([
+      { id, type: 'overview', title: '제목', size: 'medium', selection: { kind: 'all' } },
+    ]);
+    const server = {
+      ...widget,
+      revision: 3,
+      configVersion: 1,
+      referenceState: 'valid' as const,
+      createdAt: '2026-09-17T00:00:00Z',
+      updatedAt: '2026-09-17T00:00:00Z',
+    };
+    expect(writableWidgets([server])).toEqual([
+      { id, type: 'overview', title: '제목', size: 'medium', selection: { kind: 'all' } },
+    ]);
   });
 });

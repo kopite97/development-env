@@ -35,7 +35,7 @@ export type TaskActions = {
   notice?: string;
   create: () => void;
   edit: (id: string) => void;
-  status: (id: string, status: TaskStatus) => void;
+  status: (id: string, status: TaskStatus, revision?: number) => void;
   restore: (task: ApiTask) => void;
   pending: ReadonlySet<string>;
 };

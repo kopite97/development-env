@@ -166,7 +166,7 @@ Status: completed. 사용자의 명시적 완료 요청에 따라 종료 처리.
 - Library: 긴 label/description/분류, header 추가 action, refresh/reset, filtered reorder disabled, first/last item controls, editor와 삭제 검토/오류 안내 확인.
 - 실제 데이터 생성/수정/삭제/정렬/drop 저장은 허용된 검증 데이터가 있을 때만 수행한다. 없으면 해당 동작의 source 보존과 runtime 미검증을 구분한다.
 - Home/Project detail에서 Task/Journal/Link 위젯과 PLAN-0019 표현이 바뀌지 않았는지 대조한다.
-- 자동 검증이 추후 요청되면 기존 `tests/tasks/`, `tests/journals/`, `tests/links/`, `tests/shell/`, `tests/dashboard/filter-layout.spec.ts`를 재사용한다. 새 runner/fixture provider나 인증 우회로 화면 검증을 대체하지 않는다.
+- 자동 검증이 추후 요청되면 기존 `tests/tasks/`, `tests/journals/`, `tests/links/`, `tests/shell/`, `tests/dashboard/legacy-v2/filter-layout.spec.ts`를 재사용한다. 새 runner/fixture provider나 인증 우회로 화면 검증을 대체하지 않는다.
 - 인증 브라우저 접근 불가 시 페이지 시각 검증은 pending으로 기록한다. 공개 로그인 확인을 세 페이지 검증으로 보고하지 않는다.
 
 ## Completion Criteria

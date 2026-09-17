@@ -90,6 +90,34 @@ it('deduplicates cursor rows, keeps higher revisions and stops only on null curs
   expect(query.getSnapshot().data?.items[0].revision).toBe(2);
   expect(query.getSnapshot().data?.nextCursor).toBeNull();
 });
+it('shares a Project list query and preserves scroll memory for a detail round trip', async () => {
+  let calls = 0;
+  const lifecycle = new Lifecycle();
+  const store = new ProjectStore({
+    lifecycle,
+    generation: 0,
+    recoverSecurity: async () => {},
+    request: createHttpClient({
+      lifecycle,
+      fetch: async () => {
+        calls++;
+        return Response.json({ items: [dto], total: 1, nextCursor: null });
+      },
+    }),
+  });
+  const filter = { category: 'all', status: 'active', query: '' } as const;
+  const first = store.list(filter);
+  await first.load();
+  const second = store.list(filter);
+  await second.load();
+  expect(second).toBe(first);
+  expect(calls).toBe(1);
+  store.rememberScroll(filter, 420);
+  expect(store.scrollPosition(filter)).toBe(420);
+  store.clearScrollPosition(filter);
+  expect(store.scrollPosition(filter)).toBeUndefined();
+  store.dispose();
+});
 it('pre-mutation and retired-generation reads cannot republish entities even when fetch ignores abort', async () => {
   let resolve!: (response: Response) => void;
   const lifecycle = new Lifecycle();

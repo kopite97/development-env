@@ -34,6 +34,34 @@ test('page boundaries never determine direct archived detail and filters survive
   await page.goto('/projects/' + id(21) + '?q=not-in-search');
   await expect(page.getByRole('heading', { name: 'Project 21', exact: true })).toBeVisible();
 });
+test('valid project list data is shared on detail return and restores its scroll position', async ({
+  page,
+}) => {
+  await setup(page);
+  let listCalls = 0;
+  await page.route('**/api/v2/projects?*', (route) => {
+    listCalls++;
+    return route.fulfill({
+      json: {
+        items: Array.from({ length: 20 }, (_, i) => project(i + 1)),
+        total: 20,
+        nextCursor: null,
+      },
+    });
+  });
+  await page.route('**/api/v2/projects/' + id(1), (route) => route.fulfill({ json: project(1) }));
+  await page.goto('/projects');
+  await expect(page.locator('.project-row')).toHaveCount(20);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const before = await page.evaluate(() => window.scrollY);
+  expect(before).toBeGreaterThan(0);
+  await page.getByRole('button', { name: /^Project 1\s/ }).click();
+  await expect(page.getByRole('heading', { name: 'Project 1', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '프로젝트 목록', exact: true }).click();
+  await expect(page.locator('.project-row')).toHaveCount(20);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  expect(listCalls).toBe(1);
+});
 test('later page failure retains rows; invalid cursor restarts without loops', async ({ page }) => {
   await setup(page);
   let calls = 0;

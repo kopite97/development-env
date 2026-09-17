@@ -21,14 +21,15 @@ function setup(fetcher: typeof fetch) {
 }
 
 describe('HTTP response boundary', () => {
-  it('accepts only the explicit v1 and v2 API versions', async () => {
+  it('accepts only the explicit v1, v2 and v3 API versions', async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => json({ ok: true }));
     const { request } = setup(fetcher);
     await request('/api/v1/project-categories');
     await request('/api/v2/projects');
-    for (const path of ['/api/v3/projects', '/api/v20/projects', '/api/v2/../me', '/api/v2/%2fme'])
+    await request('/api/v3/dashboards/home');
+    for (const path of ['/api/v20/projects', '/api/v4/projects', '/api/v2/../me', '/api/v2/%2fme'])
       await expect(request(path)).rejects.toMatchObject({ code: 'INVALID_TARGET' });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(3);
   });
   it('reports exact freshness only after successful DTO validation', async () => {
     const response = () => {

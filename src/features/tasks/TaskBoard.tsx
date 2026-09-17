@@ -10,10 +10,11 @@ export function TaskBoard({
   onEdit,
   columns,
   pending,
+  readOnly,
 }: {
   scope?: Scope;
   tasks: Task[];
-  onTaskChange: (id: string, status: Task['status']) => void;
+  onTaskChange: (id: string, status: Task['status'], revision?: number) => void;
   onEdit?: (task: Task) => void;
   columns?: Partial<
     Record<
@@ -22,6 +23,7 @@ export function TaskBoard({
     >
   >;
   pending?: ReadonlySet<string>;
+  readOnly?: boolean;
 }) {
   const [dragged, setDragged] = useState<string | null>(null);
   const [target, setTarget] = useState<Task['status'] | null>(null);
@@ -33,7 +35,11 @@ export function TaskBoard({
           className={`kanban-column column-${status} ${target === status ? 'drop-target' : ''}`}
           key={status}
           onDragOver={(event) => {
-            if (!dragged || !event.dataTransfer.types.includes('application/x-devspace-task'))
+            if (
+              readOnly ||
+              !dragged ||
+              !event.dataTransfer.types.includes('application/x-devspace-task')
+            )
               return;
             event.preventDefault();
             event.stopPropagation();
@@ -44,12 +50,12 @@ export function TaskBoard({
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setTarget(null);
           }}
           onDrop={(event) => {
-            if (!dragged) return;
+            if (readOnly || !dragged) return;
             event.preventDefault();
             event.stopPropagation();
             const task = filtered.find((t) => t.id === dragged);
             if (task && task.status !== status && !pending?.has(task.id))
-              onTaskChange(task.id, status);
+              onTaskChange(task.id, status, task.revision);
             setDragged(null);
             setTarget(null);
           }}
@@ -70,9 +76,10 @@ export function TaskBoard({
                 className={`task ${dragged === t.id ? 'task-dragging' : ''}`}
                 key={t.id}
                 data-task-id={t.id}
-                draggable={!pending?.has(t.id)}
+                draggable={!readOnly && !pending?.has(t.id)}
                 aria-busy={pending?.has(t.id) || undefined}
                 onDragStart={(event) => {
+                  if (readOnly) return;
                   event.stopPropagation();
                   event.dataTransfer.setData('application/x-devspace-task', t.id);
                   event.dataTransfer.effectAllowed = 'move';
@@ -112,9 +119,12 @@ export function TaskBoard({
                 <label className="task-status">
                   <span className="sr-only">{t.title} 상태</span>
                   <select
-                    disabled={pending?.has(t.id)}
+                    disabled={readOnly || pending?.has(t.id)}
                     value={t.status}
-                    onChange={(e) => onTaskChange(t.id, e.target.value as Task['status'])}
+                    onChange={(e) => {
+                      const next = e.target.value as Task['status'];
+                      if (next !== t.status) onTaskChange(t.id, next, t.revision);
+                    }}
                   >
                     <option value="todo">○ 할 일</option>
                     <option value="doing">◔ 진행 중</option>

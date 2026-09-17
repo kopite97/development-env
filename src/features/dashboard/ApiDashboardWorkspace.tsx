@@ -1,7 +1,7 @@
-import { Check, GripVertical, Pencil, Plus, RotateCcw } from 'lucide-react';
+import { Check, GripVertical, Pencil, Plus } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PageScaffold, type PageScaffoldProps } from '../../shared/ui/PageScaffold';
-import { Button, EmptyState, Modal } from '../../shared/ui/controls';
+import { Button, EmptyState } from '../../shared/ui/controls';
 import { useQuery } from '../../shared/http/query';
 import { CancelledError, HttpError } from '../../shared/http/client';
 import { useUnsavedChanges } from '../../shared/hooks/useUnsavedChanges';
@@ -15,7 +15,7 @@ import { WidgetFrame } from './WidgetFrame';
 import { ApiWidgetEditor } from './ApiWidgetEditor';
 import { moveWidget } from './model';
 import type { Widget } from './apiModel';
-import { sameWidgets, saveBody, serverDefaultWidgets, type ApiDashboard } from './apiModel';
+import { sameWidgets, saveBody, type ApiDashboard } from './apiModel';
 import type { DashboardStore } from './apiStore';
 import type { DashboardEditorMemory, DashboardMemory } from './draftMemory';
 import type { DashboardProjectOptions } from './projectOptions';
@@ -52,15 +52,18 @@ export function ApiDashboardWorkspace({
   onNavigate?: (path: string) => void;
 }) {
   const state = useQuery(store.home);
+  // The server catalog is the source of supported Widget versions and sizes.
+  // The current editor still renders the established catalog labels/icons.
+  useQuery(store.catalog);
+  const [available, setAvailable] = useState<readonly Widget[]>([]);
   const [oldDraft, setOldDraft] = useState(() =>
-    memory.editor && memory.editor.baseline.schemaVersion !== 2 ? memory.editor : undefined,
+    memory.editor && memory.editor.baseline.schemaVersion !== 3 ? memory.editor : undefined,
   );
   const [editor, setEditor] = useState(oldDraft ? undefined : memory.editor);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(memory.editor?.notice ?? '');
   const [latest, setLatest] = useState<ApiDashboard>();
   const [dragId, setDragId] = useState<string | null>(null);
-  const [resetOpen, setResetOpen] = useState(false);
   const alive = useRef(true);
   const pending = useRef(false);
   const root = useRef<HTMLDivElement>(null);
@@ -102,6 +105,10 @@ export function ApiDashboardWorkspace({
   };
   const editWidget = (widget?: Widget) => {
     if (busy || editor?.review) return;
+    void store.available.load().then(() => {
+      const snapshot = store.available.getSnapshot();
+      if (current() && snapshot.status === 'ready') setAvailable(snapshot.data?.items ?? []);
+    });
     if (!editor && !start()) return;
     const form =
       widget ??
@@ -145,7 +152,8 @@ export function ApiDashboardWorkspace({
     if (!editor || editor.review || pending.current) return;
     let submitted;
     try {
-      submitted = saveBody(editor.baseline.revision, editor.draft);
+      const layout = saveBody(editor.baseline.layoutRevision, editor.draft);
+      submitted = { layoutRevision: layout.layoutRevision, widgets: editor.draft };
     } catch (error) {
       setNotice((error as Error).message);
       return;
@@ -212,6 +220,25 @@ export function ApiDashboardWorkspace({
         : '최신 배치를 사용합니다.',
     );
   };
+  const initialize = async (empty: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    setNotice('');
+    try {
+      if (empty) await store.initializeEmpty();
+      else await store.initialize();
+      if (current()) setNotice(empty ? '빈 홈을 준비했습니다.' : '기본 위젯을 준비했습니다.');
+    } catch (error) {
+      if (current())
+        setNotice(
+          error instanceof HttpError && error.code === 'REVISION_CONFLICT'
+            ? '이미 초기화된 홈입니다. 최신 배치를 다시 확인해 주세요.'
+            : '홈을 준비하지 못했습니다. 다시 시도해 주세요.',
+        );
+    } finally {
+      if (current()) setBusy(false);
+    }
+  };
   const move = (widget: Widget, targetId: string) => {
     change(moveWidget(items, widget.id, targetId));
     requestAnimationFrame(() =>
@@ -270,13 +297,34 @@ export function ApiDashboardWorkspace({
               </>
             ) : (
               <>
-                <Button disabled={state.status !== 'ready' || state.stale} onClick={start}>
-                  <Pencil size={15} />
-                  배치 편집
-                </Button>
+                {state.data?.initialized === false ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      disabled={busy || state.status !== 'ready' || state.stale}
+                      onClick={() => void initialize(false)}
+                    >
+                      <Plus size={17} />
+                      기본 위젯으로 시작
+                    </Button>
+                    <Button
+                      disabled={busy || state.status !== 'ready' || state.stale}
+                      onClick={() => void initialize(true)}
+                    >
+                      빈 홈으로 시작
+                    </Button>
+                  </>
+                ) : (
+                  <Button disabled={state.status !== 'ready' || state.stale} onClick={start}>
+                    <Pencil size={15} />
+                    배치 편집
+                  </Button>
+                )}
                 <Button
                   variant="primary"
-                  disabled={state.status !== 'ready' || state.stale}
+                  disabled={
+                    state.data?.initialized === false || state.status !== 'ready' || state.stale
+                  }
                   onClick={() => editWidget()}
                 >
                   <Plus size={17} />
@@ -298,6 +346,14 @@ export function ApiDashboardWorkspace({
               배치 다시 불러오기
             </Button>
           </p>
+        )}
+        {state.status === 'ready' && state.data?.initialized === false && (
+          <EmptyState title="홈을 시작해 보세요">
+            <p>
+              서버가 제공하는 기본 위젯 6개를 준비하거나, 빈 홈에서 필요한 위젯을 직접 추가할 수
+              있어요.
+            </p>
+          </EmptyState>
         )}
         {notice && (
           <p className="notice" role={editor?.review ? 'alert' : 'status'}>
@@ -351,14 +407,6 @@ export function ApiDashboardWorkspace({
             <span>
               드래그하거나 화살표로 위치를 바꾸세요. 설정에서 크기와 종류를 변경할 수 있어요.
             </span>
-            <Button
-              variant="ghost"
-              disabled={busy || editor.review}
-              onClick={() => setResetOpen(true)}
-            >
-              <RotateCcw size={14} />
-              기본 배치
-            </Button>
             <Button disabled={busy || editor.review} onClick={() => editWidget()}>
               <Plus size={15} />
               위젯 추가
@@ -407,15 +455,17 @@ export function ApiDashboardWorkspace({
             );
           })}
         </div>
-        {(state.status === 'ready' || editing) && !shown.length && (
-          <EmptyState
-            title="표시할 위젯이 없어요"
-            onReset={!editing && (query || filter !== 'all') ? onReset : undefined}
-          >
-            <p>검색 조건을 바꾸거나 홈에 필요한 위젯을 추가해 주세요.</p>
-          </EmptyState>
-        )}
-        {(state.data || editing) && (
+        {(state.status === 'ready' || editing) &&
+          state.data?.initialized !== false &&
+          !shown.length && (
+            <EmptyState
+              title="표시할 위젯이 없어요"
+              onReset={!editing && (query || filter !== 'all') ? onReset : undefined}
+            >
+              <p>검색 조건을 바꾸거나 홈에 필요한 위젯을 추가해 주세요.</p>
+            </EmptyState>
+          )}
+        {((state.data?.initialized !== false && state.data) || editing) && (
           <button
             className="add-widget-area"
             disabled={busy || editor?.review || (!editing && state.status !== 'ready')}
@@ -432,6 +482,11 @@ export function ApiDashboardWorkspace({
             memory={memory}
             options={options}
             categories={categories}
+            available={available}
+            onDelete={async (widget) => {
+              await store.deleteWidget(widget);
+              setAvailable((items) => items.filter((item) => item.id !== widget.id));
+            }}
             onClose={() => update({ ...memory.editor!, widget: undefined })}
             onSave={(w) => {
               const draft = items.some((x) => x.id === w.id)
@@ -440,26 +495,6 @@ export function ApiDashboardWorkspace({
               update({ ...memory.editor!, draft, widget: undefined });
             }}
           />
-        )}
-        {resetOpen && (
-          <Modal title="기본 배치로 복원할까요?" onClose={() => setResetOpen(false)}>
-            <p className="detail-body">
-              현재 편집 중인 배치를 기본 위젯 6개로 바꿉니다. 작업 데이터는 유지됩니다. 배치 저장
-              전에는 취소할 수 있어요.
-            </p>
-            <div className="modal-actions">
-              <Button onClick={() => setResetOpen(false)}>취소</Button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  change(serverDefaultWidgets());
-                  setResetOpen(false);
-                }}
-              >
-                기본 배치 적용
-              </Button>
-            </div>
-          </Modal>
         )}
       </PageScaffold>
     </div>

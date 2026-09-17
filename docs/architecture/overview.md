@@ -1,12 +1,12 @@
 # System overview
 
-Devspace is a React 19 and TypeScript SPA built with Vite. Its default entry authenticates through the existing backend session and displays backend User/PersonalWorkspace data. Projects and Tasks use backend data and mutations; Overview supplies independent counters. The Task page retains its established UI; Home temporarily shows a Task-only board beside Overview. Journal, Milestone, Link and Dashboard APIs, Dashboard defaults and automatic seeding remain excluded.
+Devspace is a React 19 and TypeScript SPA built with Vite. Its default entry authenticates through the existing backend session and displays backend User/PersonalWorkspace data. Projects, Tasks, Journals, Milestones, Links and Home Widgets use server-owned data and mutations through their feature stores. Home layout uses Dashboard v3 placements; Widget configuration and typed Widget data use the independent Widget v1 APIs. Uninitialized Home state is explicit and GET never seeds defaults.
 
 ```mermaid
 flowchart LR
-  Browser[Browser: auth gate, Projects, Tasks and Overview] --> Proxy[Same-origin Vite or Nginx]
-  Proxy --> Backend[Backend auth, Project, Task and Overview APIs]
-  Backend --> Database[User, Workspace, Project, Task and aggregate data]
+  Browser[Browser: auth gate, Home Widgets and feature pages] --> Proxy[Same-origin Vite or Nginx]
+  Proxy --> Backend[Backend auth, layout, Widget and business APIs]
+  Backend --> Database[User, Workspace, layout, Widget and business data]
   Backend --> OIDC[Google OIDC]
   Legacy[Test-only legacy entry] --> Storage[Preserved local prototype records]
 ```

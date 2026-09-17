@@ -30,6 +30,7 @@ import { milestoneProjectOptions } from './milestoneProjectOptions';
 import { readCategoryFilter, readProjectFilter } from '../../features/projects/categoryFilter';
 import { useQuery } from '../../shared/http/query';
 import { freshTransport } from '../../shared/http/freshTransport';
+import { QueryManager } from '../../shared/http/queryManager';
 export function PrivateWorkspace({
   transport: sessionTransport,
   url,
@@ -75,7 +76,8 @@ export function PrivateWorkspace({
   );
   const [dashboard] = useState(() => new DashboardStore(transport));
   const [links] = useState(() => new LinkStore(transport));
-  const [projects] = useState(() => new ProjectStore(transport));
+  const [queryManager] = useState(() => new QueryManager());
+  const [projects] = useState(() => new ProjectStore(transport, queryManager));
   const [categories] = useState(() => new CategoryStore(transport));
   const [overview] = useState(() => new OverviewStore(transport));
   const [tasks] = useState(() => new TaskStore(transport));
@@ -86,10 +88,13 @@ export function PrivateWorkspace({
   const [journalOptions] = useState(() => journalProjectOptions(projects));
   const [dashboardOptions] = useState(() => dashboardProjectOptions(projects));
   const categoryState = useQuery(categories.list);
-  tasks.onInvalidate = () => overview.invalidate();
+  tasks.onInvalidate = () => {
+    overview.invalidate();
+    dashboard.invalidate();
+  };
   categories.onChanged = (kind) => {
     if (kind !== 'rename') projects.counts.invalidate();
-    if (kind === 'delete') dashboard.invalidate();
+    dashboard.invalidate();
   };
   dashboard.onSaved = () => {
     overview.invalidate();
@@ -110,6 +115,14 @@ export function PrivateWorkspace({
     milestoneOptions.invalidate();
     milestones.invalidate();
   };
+  journals.onInvalidate = () => dashboard.invalidate();
+  milestones.onInvalidate = () => dashboard.invalidate();
+  links.onInvalidate = () => dashboard.invalidate();
+  useEffect(() => {
+    const handleFocus = () => queryManager.revalidate();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [queryManager]);
   const mounts = useRef(0);
   useEffect(() => {
     mounts.current++;
@@ -121,6 +134,7 @@ export function PrivateWorkspace({
           dashboardOptions.dispose();
           links.dispose();
           projects.dispose();
+          queryManager.dispose();
           categories.dispose();
           overview.dispose();
           tasks.dispose();
@@ -137,6 +151,7 @@ export function PrivateWorkspace({
     dashboardOptions,
     links,
     projects,
+    queryManager,
     categories,
     overview,
     tasks,

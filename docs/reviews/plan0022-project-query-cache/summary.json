@@ -1,0 +1,401 @@
+[
+  {
+    "scenario": "home-first",
+    "n": 10,
+    "apiCount": {
+      "median": 12,
+      "min": 12,
+      "max": 12
+    },
+    "visibleMs": {
+      "median": 427.5,
+      "min": 328,
+      "max": 480
+    },
+    "responseBytes": {
+      "median": 30359,
+      "min": 30356,
+      "max": 30366
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "projects-first",
+    "n": 10,
+    "apiCount": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "visibleMs": {
+      "median": 106,
+      "min": 88,
+      "max": 160
+    },
+    "responseBytes": {
+      "median": 747,
+      "min": 744,
+      "max": 747
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "projects-next-page",
+    "n": 10,
+    "apiCount": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "visibleMs": {
+      "median": 192.5,
+      "min": 92,
+      "max": 206
+    },
+    "responseBytes": {
+      "median": 2005,
+      "min": 2004,
+      "max": 2005
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "project-detail-first",
+    "n": 10,
+    "apiCount": {
+      "median": 10,
+      "min": 10,
+      "max": 10
+    },
+    "visibleMs": {
+      "median": 182.5,
+      "min": 132,
+      "max": 246
+    },
+    "responseBytes": {
+      "median": 17408,
+      "min": 17405,
+      "max": 17408
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "projects-return",
+    "n": 10,
+    "apiCount": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "visibleMs": {
+      "median": 92,
+      "min": 70,
+      "max": 105
+    },
+    "responseBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "project-editor-first",
+    "n": 10,
+    "apiCount": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "visibleMs": {
+      "median": 260,
+      "min": 182,
+      "max": 306
+    },
+    "responseBytes": {
+      "median": 831,
+      "min": 831,
+      "max": 831
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "project-editor-reopen",
+    "n": 10,
+    "apiCount": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "visibleMs": {
+      "median": 177,
+      "min": 137,
+      "max": 293
+    },
+    "responseBytes": {
+      "median": 831,
+      "min": 831,
+      "max": 831
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "tasks-first",
+    "n": 10,
+    "apiCount": {
+      "median": 5,
+      "min": 5,
+      "max": 5
+    },
+    "visibleMs": {
+      "median": 154,
+      "min": 126,
+      "max": 274
+    },
+    "responseBytes": {
+      "median": 13372,
+      "min": 13369,
+      "max": 13372
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "task-editor-first",
+    "n": 10,
+    "apiCount": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "visibleMs": {
+      "median": 254,
+      "min": 192,
+      "max": 313
+    },
+    "responseBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "task-editor-reopen",
+    "n": 10,
+    "apiCount": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "visibleMs": {
+      "median": 204,
+      "min": 154,
+      "max": 271
+    },
+    "responseBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "home-return",
+    "n": 10,
+    "apiCount": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "visibleMs": {
+      "median": 108,
+      "min": 85,
+      "max": 147
+    },
+    "responseBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "tasks-return",
+    "n": 10,
+    "apiCount": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "visibleMs": {
+      "median": 98,
+      "min": 94,
+      "max": 126
+    },
+    "responseBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "journals-first",
+    "n": 10,
+    "apiCount": {
+      "median": 2,
+      "min": 2,
+      "max": 2
+    },
+    "visibleMs": {
+      "median": 147,
+      "min": 128,
+      "max": 218
+    },
+    "responseBytes": {
+      "median": 8538,
+      "min": 8538,
+      "max": 8538
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "journal-editor-first",
+    "n": 10,
+    "apiCount": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "visibleMs": {
+      "median": 254,
+      "min": 153,
+      "max": 311
+    },
+    "responseBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "journal-editor-reopen",
+    "n": 10,
+    "apiCount": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "visibleMs": {
+      "median": 224.5,
+      "min": 174,
+      "max": 318
+    },
+    "responseBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "project-detail-return",
+    "n": 10,
+    "apiCount": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "visibleMs": {
+      "median": 149.5,
+      "min": 101,
+      "max": 178
+    },
+    "responseBytes": {
+      "median": 831,
+      "min": 831,
+      "max": 831
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "project-save",
+    "n": 10,
+    "apiCount": {
+      "median": 12,
+      "min": 12,
+      "max": 12
+    },
+    "visibleMs": {
+      "median": 420.5,
+      "min": 253,
+      "max": 471
+    },
+    "responseBytes": {
+      "median": 18220,
+      "min": 18217,
+      "max": 18222
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "projects-after-save",
+    "n": 10,
+    "apiCount": {
+      "median": 2,
+      "min": 2,
+      "max": 2
+    },
+    "visibleMs": {
+      "median": 193,
+      "min": 163,
+      "max": 258
+    },
+    "responseBytes": {
+      "median": 7833,
+      "min": 7833,
+      "max": 7833
+    },
+    "failures": 0,
+    "httpErrors": 0
+  },
+  {
+    "scenario": "project-detail-after-save",
+    "n": 10,
+    "apiCount": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "visibleMs": {
+      "median": 152,
+      "min": 134,
+      "max": 184
+    },
+    "responseBytes": {
+      "median": 831,
+      "min": 831,
+      "max": 831
+    },
+    "failures": 0,
+    "httpErrors": 0
+  }
+]

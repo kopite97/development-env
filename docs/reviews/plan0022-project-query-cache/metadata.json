@@ -1,0 +1,33 @@
+{
+  "plan": "PLAN-0022",
+  "dashboardContract": "Widget v1 + Dashboard v3",
+  "measuredAt": "2026-09-17T07:22:02.363Z",
+  "frontendCommit": "1a2a440303733dd8a7e40f6dc842675b4ec599bb",
+  "backendMainSha256": "2fdb45eb1ad3dc5179aca8ea3eb5718bdd4692baea6a14448a201641a840eacb",
+  "node": "v24.14.0",
+  "browser": "153.0.8010.12",
+  "os": "Windows_NT 10.0.26200",
+  "cpu": "13th Gen Intel(R) Core(TM) i5-1335U",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "api": "http://127.0.0.1:18080",
+  "origin": "http://127.0.0.1:4175",
+  "production": true,
+  "database": "PostgreSQL 16.4 disposable Testcontainers",
+  "fixture": {
+    "users": 1,
+    "categories": 3,
+    "projects": 25,
+    "tasks": 30,
+    "journals": 3,
+    "milestones": 0,
+    "links": 1
+  },
+  "warmupPasses": 1,
+  "measuredPasses": 10,
+  "throttling": "none; loopback; sequential browser contexts",
+  "cache": "New browser context and document per pass; same document for in-app revisits; business responses no-store; Project list/detail policy is measured in the PLAN-0022 run",
+  "authentication": "Real backend session with local test OIDC provider; credentials and storageState are never written"
+}

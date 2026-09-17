@@ -18,3 +18,4 @@ This directory contains repeatable development and operational guides.
 - `CONVENTIONS.md` — project-wide coding, structure, naming, and reuse conventions
 - `ENVIRONMENT.md` — environment variables and configuration rules
 - `TESTING.md` — unit, browser, Playwright, real-backend, and visual validation rules
+- `query-policy.md` — server query development rules, ownership, and planned automated enforcement

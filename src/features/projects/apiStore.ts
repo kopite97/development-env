@@ -1,6 +1,7 @@
 import { CancelledError, HttpError } from '../../shared/http/client';
 import type { PrivateTransport } from '../../shared/http/transport';
 import { Query } from '../../shared/http/query';
+import { QueryManager } from '../../shared/http/queryManager';
 import {
   parseProject,
   parseCreatedProject,
@@ -17,6 +18,11 @@ export type ProjectFilter = {
   status: 'active' | 'archived' | 'all';
   query: string;
 };
+export const PROJECT_QUERY_POLICY = {
+  freshForMs: 30_000,
+  gcAfterMs: 5 * 60_000,
+  revalidateOnFocus: true,
+} as const;
 export type ProjectList = ProjectPage & { cursors: string[] };
 export class ProjectCreatedError extends Error {
   constructor(readonly id: ServerProjectId) {
@@ -28,11 +34,19 @@ export class ProjectStore {
   readonly entities = new Map<ServerProjectId, ApiProject>();
   private lists = new Map<string, Query<ProjectList>>();
   private details = new Map<ServerProjectId, Query<ApiProject>>();
+  private readonly queryManager: QueryManager;
+  private readonly ownsQueryManager: boolean;
+  private scrollPositions = new Map<string, number>();
   private epoch = 0;
   private pending = new Set<string>();
   private lifetime = new AbortController();
   onInvalidate = () => {};
-  constructor(readonly transport: PrivateTransport) {
+  constructor(
+    readonly transport: PrivateTransport,
+    queryManager?: QueryManager,
+  ) {
+    this.queryManager = queryManager ?? new QueryManager();
+    this.ownsQueryManager = !queryManager;
     this.counts = new Query((signal) =>
       transport.request('/api/v2/projects/category-counts', {
         signal,
@@ -67,14 +81,76 @@ export class ProjectStore {
     if (epoch !== this.epoch || signal.aborted) throw new CancelledError();
     return { ...page, items: page.items.map((item) => this.adopt(item)) };
   }
+  filterKey(filter: ProjectFilter) {
+    return JSON.stringify([filter.category, filter.status, filter.query, 20]);
+  }
+
+  rememberScroll(filter: ProjectFilter, position: number) {
+    if (Number.isFinite(position) && position >= 0)
+      this.scrollPositions.set(this.filterKey(filter), position);
+  }
+
+  clearScrollPosition(filter: ProjectFilter) {
+    this.scrollPositions.delete(this.filterKey(filter));
+  }
+
+  scrollPosition(filter: ProjectFilter) {
+    return this.scrollPositions.get(this.filterKey(filter));
+  }
+
+  private clearScroll() {
+    this.scrollPositions.clear();
+  }
+
+  private pruneEntities() {
+    const retained = new Set<ServerProjectId>();
+    for (const query of [...this.lists.values(), ...this.details.values()]) {
+      const data = query.getSnapshot().data;
+      if (!data) continue;
+      if ('items' in data) for (const item of data.items) retained.add(item.id);
+      else retained.add(data.id);
+    }
+    for (const id of this.entities.keys()) if (!retained.has(id)) this.entities.delete(id);
+  }
+
+  private queryDefinition<T>(
+    key: string,
+    contract: string,
+    fetcher: (signal: AbortSignal) => Promise<T>,
+    onRefresh?: (reason: 'expired' | 'forced' | 'initial') => void,
+    onEvict?: () => void,
+  ) {
+    return {
+      key,
+      contract,
+      policy: PROJECT_QUERY_POLICY,
+      fetcher,
+      onRefresh,
+      onEvict: () => {
+        onEvict?.();
+        this.pruneEntities();
+      },
+    };
+  }
   list(filter: ProjectFilter) {
-    const key = JSON.stringify([filter.category, filter.status, filter.query, 20]);
+    const key = this.filterKey(filter);
     let query = this.lists.get(key);
     if (!query) {
-      query = new Query<ProjectList>(async (signal) => ({
-        ...(await this.page(filter, signal)),
-        cursors: [],
-      }));
+      const created = this.queryManager.get<ProjectList>(
+        this.queryDefinition(
+          'projects:list:' + key,
+          'project-list-v2',
+          async (signal) => ({
+            ...(await this.page(filter, signal)),
+            cursors: [],
+          }),
+          (reason) => {
+            if (reason !== 'initial') this.scrollPositions.delete(key);
+          },
+          () => this.scrollPositions.delete(key),
+        ),
+      );
+      query = created;
       this.lists.set(key, query);
     }
     return query;
@@ -84,32 +160,38 @@ export class ProjectStore {
       previous = query.getSnapshot().data;
     if (!previous?.nextCursor || query.getSnapshot().status === 'loading') return Promise.resolve();
     const cursor = previous.nextCursor;
-    return query.load(async (signal) => {
-      const next = await this.page(filter, signal, cursor);
-      const cursors = [...previous.cursors, cursor];
-      if (next.nextCursor && cursors.includes(next.nextCursor))
-        throw new Error('The server repeated a cursor. Restart the list.');
-      const items = new Map(previous.items.map((item) => [item.id, item]));
-      for (const item of next.items) items.set(item.id, item);
-      return { ...next, items: [...items.values()], cursors };
-    });
+    return query.load(
+      async (signal) => {
+        const next = await this.page(filter, signal, cursor);
+        const cursors = [...previous.cursors, cursor];
+        if (next.nextCursor && cursors.includes(next.nextCursor))
+          throw new Error('The server repeated a cursor. Restart the list.');
+        const items = new Map(previous.items.map((item) => [item.id, item]));
+        for (const item of next.items) items.set(item.id, item);
+        return { ...next, items: [...items.values()], cursors };
+      },
+      { force: true, reason: 'page' },
+    );
   }
   detail(id: ServerProjectId) {
     let query = this.details.get(id);
     if (!query) {
-      query = new Query<ApiProject>(async (signal) => {
-        const epoch = this.epoch;
-        const project = await this.transport.request('/api/v2/projects/' + id, {
-          signal,
-          generation: this.transport.generation,
-          expectedStatus: 200,
-          parse: parseProject,
-        });
-        this.transport.lifecycle.assert(this.transport.generation);
-        if (epoch !== this.epoch || signal.aborted) throw new CancelledError();
-        if (project.id !== id) throw new Error('Project identity mismatch');
-        return this.adopt(project);
-      });
+      const created = this.queryManager.get<ApiProject>(
+        this.queryDefinition('projects:detail:' + id, 'project-detail-v2', async (signal) => {
+          const epoch = this.epoch;
+          const project = await this.transport.request('/api/v2/projects/' + id, {
+            signal,
+            generation: this.transport.generation,
+            expectedStatus: 200,
+            parse: parseProject,
+          });
+          this.transport.lifecycle.assert(this.transport.generation);
+          if (epoch !== this.epoch || signal.aborted) throw new CancelledError();
+          if (project.id !== id) throw new Error('Project identity mismatch');
+          return this.adopt(project);
+        }),
+      );
+      query = created;
       this.details.set(id, query);
       const cached = this.entities.get(id);
       if (cached) query.seed(cached);
@@ -117,6 +199,7 @@ export class ProjectStore {
     return query;
   }
   invalidate(notify = true) {
+    this.clearScroll();
     this.counts.invalidate();
     this.epoch++;
     for (const query of this.lists.values()) query.invalidate(true);
@@ -186,7 +269,9 @@ export class ProjectStore {
     this.epoch++;
     for (const query of [...this.lists.values(), ...this.details.values()]) query.cancel();
     this.entities.clear();
+    this.scrollPositions.clear();
     this.lists.clear();
     this.details.clear();
+    if (this.ownsQueryManager) this.queryManager.dispose();
   }
 }

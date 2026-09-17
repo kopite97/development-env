@@ -51,6 +51,7 @@ export function taskPresentation(task: ApiTask): TaskPresentation {
   return {
     ...taskDraft(task),
     id: task.id,
+    revision: task.revision,
     project: task.projectName,
     categoryId: task.categoryId,
     deletedAt: task.deletedAt,

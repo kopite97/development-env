@@ -1,335 +1,283 @@
 import assert from 'node:assert/strict';
-import { expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { expect } from '@playwright/test';
 
-export async function validateDashboard({ page, context, origin, sql, alice, output }) {
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const defaultTypes = ['overview', 'board', 'deploy', 'links', 'journal', 'milestone'];
+
+/** Real acceptance for the independent Widget v1 and Dashboard v3 contracts. */
+export async function validateDashboard({ page, context, origin, sql, output }) {
   const contract = await (await context.request.get('http://127.0.0.1:18080/v3/api-docs')).json();
-  const endpoint = '/api/v1/dashboards/home';
-  const operation = contract.paths[endpoint];
-  assert(operation.get.responses['200']);
-  assert(operation.put.responses['200']);
-  assert(!(operation.put.parameters ?? []).some((p) => p.name === 'Idempotency-Key'));
+  const dashboard = contract.paths['/api/v3/dashboards/home'];
+  const initialization = contract.paths['/api/v3/dashboards/home/initializations'];
+  const widgets = contract.paths['/api/v1/widgets'];
+  const widget = contract.paths['/api/v1/widgets/{id}'];
+  const data = contract.paths['/api/v1/widgets/{id}/data'];
+  const catalog = contract.paths['/api/v1/widget-types'];
+  const projects = contract.paths['/api/v2/projects'];
+  const tasks = contract.paths['/api/v2/tasks/{id}'];
+  assert(dashboard?.get?.responses?.['200']);
+  assert(dashboard?.put?.responses?.['200']);
+  assert(initialization?.post?.responses?.['201']);
+  assert(widgets?.get?.responses?.['200']);
+  assert(widgets?.post?.responses?.['201']);
+  assert(widget?.put?.responses?.['200']);
+  assert(widget?.delete?.responses?.['200']);
+  assert(data?.get?.responses?.['200']);
+  assert(catalog?.get?.responses?.['200']);
+  assert(projects?.get?.responses?.['200']);
+  assert(tasks?.get?.responses?.['200']);
+  assert(tasks?.patch?.responses?.['200']);
   fs.writeFileSync(
     path.join(output, 'dashboard-contract.json'),
     JSON.stringify(
       {
-        path: operation,
+        paths: {
+          '/api/v3/dashboards/home': dashboard,
+          '/api/v3/dashboards/home/initializations': initialization,
+          '/api/v1/widgets': widgets,
+          '/api/v1/widgets/{id}': widget,
+          '/api/v1/widgets/{id}/data': data,
+          '/api/v1/widget-types': catalog,
+          '/api/v2/projects': projects,
+          '/api/v2/tasks/{id}': tasks,
+        },
         schemas: Object.fromEntries(
-          Object.entries(contract.components.schemas).filter(([k]) => /Dashboard/.test(k)),
+          Object.entries(contract.components.schemas).filter(([name]) =>
+            /(?:Widget|Placement|HomeLayout)/.test(name),
+          ),
         ),
       },
       null,
       2,
     ),
   );
-  const token = (await (await context.request.get(origin + '/api/v1/auth/csrf')).json()).csrfToken;
-  const send = async (method, p, data, status = 200, key) => {
-    const response = await context.request.fetch(origin + p, {
+
+  const csrf = (await (await context.request.get(origin + '/api/v1/auth/csrf')).json()).csrfToken;
+  const send = async (method, endpoint, body, status, key) => {
+    const response = await context.request.fetch(origin + endpoint, {
       method,
       headers: {
         Origin: origin,
-        'X-CSRF-Token': token,
+        'X-CSRF-Token': csrf,
         ...(key ? { 'Idempotency-Key': key } : {}),
       },
-      ...(data === undefined ? {} : { data }),
+      ...(body === undefined ? {} : { data: body }),
     });
-    assert.equal(response.status(), status, method + ' ' + p + ' ' + (await response.text()));
-    return response.json();
+    assert.equal(response.status(), status, `${method} ${endpoint}: ${await response.text()}`);
+    return response.status() === 204 ? undefined : response.json();
   };
-  const get = () => send('GET', endpoint);
-  const body = (revision, widgets) => ({ schemaVersion: 1, revision, widgets });
-  const before = sql(
-    `select revision||':'||data_revision from workspaces where id='${alice.workspace.id}'`,
-  );
-  const initial = await get();
-  assert.deepEqual(initial, await get());
-  assert.equal(initial.revision, 0);
-  assert.equal(sql('select count(*) from dashboards'), '0');
-  assert.equal(
-    sql(`select revision||':'||data_revision from workspaces where id='${alice.workspace.id}'`),
-    before,
-  );
-  assert.deepEqual(
-    initial.widgets.map((w) => [w.id, w.type, w.title, w.scope, w.size, Object.keys(w).length]),
-    [
-      ['home-overview', 'overview', '프로젝트 개요', 'all', 'wide', 5],
-      ['home-board', 'board', '작업 보드', 'all', 'wide', 5],
-      ['home-deploy', 'deploy', '운영', 'all', 'medium', 5],
-      ['home-links', 'links', '바로가기', 'all', 'small', 5],
-      ['home-journal', 'journal', '개발 일지', 'all', 'medium', 5],
-      ['home-milestone', 'milestone', '마일스톤', 'all', 'medium', 5],
-    ],
-  );
+  const getHome = () => send('GET', '/api/v3/dashboards/home', undefined, 200);
+  const getWidget = (id) => send('GET', '/api/v1/widgets/' + id, undefined, 200);
+  const layoutBody = (layoutRevision, placements) => ({
+    schemaVersion: 3,
+    layoutRevision,
+    placements,
+  });
+
+  const initial = await getHome();
+  assert.equal(initial.id, 'home');
+  assert.equal(initial.schemaVersion, 3);
+  assert.equal(initial.initialized, false);
+  assert.equal(initial.layoutRevision, 0);
+  assert.deepEqual(initial.placements, []);
+  assert.deepEqual(initial.widgets, []);
+  assert.equal((await getHome()).initialized, false);
+
   await page.goto(origin);
-  await expect(page.locator('.widget')).toHaveCount(6);
-  assert.equal(sql('select count(*) from dashboards'), '0');
-  // Real concurrent first-save compare-and-swap; exactly one revision-zero winner.
-  const concurrent = await Promise.all(
-    [[], initial.widgets].map((w) =>
-      context.request.put(origin + endpoint, {
-        headers: { Origin: origin, 'X-CSRF-Token': token },
-        data: body(0, w),
-      }),
-    ),
-  );
-  assert.deepEqual(concurrent.map((r) => r.status()).sort(), [200, 409]);
-  assert.equal((await get()).revision, 1);
-  const projects = [];
-  for (let i = 0; i < 23; i++)
-    projects.push(
-      await send(
-        'POST',
-        '/api/v1/projects',
-        {
-          name: 'Dashboard project ' + i,
-          scope: i % 2 ? 'server' : 'unity',
-          stack: i % 2 ? 'Java' : 'C#',
-        },
-        201,
-        crypto.randomUUID(),
-      ),
-    );
-  const selected = projects[0];
-  await send(
+  await expect(page.getByRole('button', { name: '기본 위젯으로 시작' })).toBeVisible();
+  await page.getByRole('button', { name: '기본 위젯으로 시작' }).click();
+  await expect(page.locator('.dashboard-grid > .widget')).toHaveCount(6);
+
+  let current = await getHome();
+  assert.equal(current.initialized, true);
+  assert.equal(current.layoutRevision, 1);
+  assert.equal(current.widgets.length, 6);
+  assert.deepEqual(current.widgets.map((item) => item.type).sort(), [...defaultTypes].sort());
+  assert(current.widgets.every((item) => uuid.test(item.id) && item.revision >= 1));
+  assert(current.placements.every((item) => uuid.test(item.id) && uuid.test(item.widgetId)));
+
+  const definitions = await send('GET', '/api/v1/widget-types', undefined, 200);
+  assert(defaultTypes.every((type) => definitions.some((definition) => definition.type === type)));
+  for (const item of current.widgets) {
+    const envelope = await send('GET', '/api/v1/widgets/' + item.id + '/data', undefined, 200);
+    assert.equal(envelope.widgetId, item.id);
+    assert.equal(envelope.type, item.type);
+    assert.equal(envelope.configRevision, item.revision);
+    if (item.type === 'deploy') assert.equal(envelope.availability, 'unavailable');
+    else assert(['ready', 'empty', 'unavailable'].includes(envelope.availability));
+  }
+
+  const project = await send(
     'POST',
-    '/api/v1/tasks',
+    '/api/v2/projects',
+    { name: 'Dashboard acceptance project', stack: 'React' },
+    201,
+    'dashboard-acceptance-project-' + Date.now(),
+  );
+  const task = await send(
+    'POST',
+    '/api/v2/tasks',
     {
-      title: 'Dashboard task',
-      projectId: selected.id,
+      title: 'Dashboard acceptance task',
+      projectId: project.id,
       status: 'todo',
       priority: 'normal',
-      tag: '',
-      description: 'Preserved task',
+      tag: 'dashboard',
     },
     201,
-    crypto.randomUUID(),
-  );
-  await send(
-    'POST',
-    '/api/v1/journals',
-    {
-      title: 'Dashboard journal',
-      projectId: selected.id,
-      body: '  Entire body\n\n  ',
-      entryDate: '2024-02-29',
-    },
-    201,
-    crypto.randomUUID(),
-  );
-  await send(
-    'POST',
-    '/api/v1/milestones',
-    { title: 'Dashboard milestone', projectId: selected.id, dueDate: null, completed: false },
-    201,
-    crypto.randomUUID(),
-  );
-  await send(
-    'POST',
-    '/api/v1/links',
-    {
-      label: 'Dashboard link',
-      description: 'Real collection',
-      url: 'https://example.com',
-      scope: 'all',
-    },
-    201,
-    crypto.randomUUID(),
-  );
-  const archived = await send('PATCH', '/api/v1/projects/' + selected.id, {
-    revision: selected.revision,
-    status: 'archived',
-  });
-  const firstPage = await send('GET', '/api/v1/projects?scope=all&status=all&query=&limit=20');
-  assert(!firstPage.items.some((p) => p.id === selected.id));
-  assert(firstPage.nextCursor);
-  const business = () =>
-    ['projects', 'tasks', 'journals', 'milestones', 'links'].map((t) =>
-      sql(`select coalesce(jsonb_agg(to_jsonb(t) order by id)::text,'[]') from ${t} t`),
-    );
-  const snapshot = business();
-  const configured = initial.widgets.map((w) =>
-    ['overview', 'board', 'journal', 'milestone'].includes(w.type)
-      ? { ...w, scope: 'unity', projectId: selected.id, limit: 1 }
-      : w,
-  );
-  let saved = await send('PUT', endpoint, body(1, configured));
-  assert.equal(saved.revision, 2);
-  assert(saved.widgets.filter((w) => w.projectId).every((w) => w.scope === 'all'));
-  await send('PUT', endpoint, body(1, configured), 409);
-  assert.deepEqual(business(), snapshot);
-  await send('PUT', endpoint, { ...body(saved.revision, []), unknown: true }, 400);
-  await send('PUT', endpoint, body(saved.revision, [{ ...initial.widgets[0], limit: null }]), 400);
-  await send('PUT', endpoint, body(saved.revision, [initial.widgets[0], initial.widgets[0]]), 400);
-  await send('PUT', endpoint, body(saved.revision, [{ ...initial.widgets[3], limit: 1 }]), 400);
-  await send(
-    'PUT',
-    endpoint,
-    body(0, [{ ...initial.widgets[0], projectId: '00000000-0000-0000-0000-000000000099' }]),
-    404,
+    'dashboard-acceptance-task-' + Date.now(),
   );
   await page.reload();
+  const overview = page.locator('.widget').filter({ hasText: '프로젝트 개요' });
   await expect(
-    page
-      .locator('[data-widget-id="home-overview"]')
-      .getByRole('button', { name: selected.name + ' 상세 보기' }),
+    overview.getByRole('button', { name: 'Dashboard acceptance project' }),
   ).toBeVisible();
-  await expect(page.locator('.task-title')).toHaveText('Dashboard task');
-  await expect(page.locator('.journal-row')).toHaveCount(1);
-  await expect(page.locator('.milestone')).toHaveCount(1);
-  await expect(page.locator('.quick-links strong')).toHaveText('Dashboard link');
-  await expect(page.getByText('실시간 연동 전 · 데모 데이터')).toBeVisible();
-  const viewRequests = [];
-  const observeView = (request) => viewRequests.push(new URL(request.url()));
-  page.on('request', observeView);
-  const otherProject = projects.at(-1);
-  await page.getByLabel('Home 프로젝트').selectOption(otherProject.id);
-  await expect(page.locator('.project-row')).toContainText(otherProject.name);
-  await expect(page.getByText('Dashboard task', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Dashboard journal', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Dashboard milestone', { exact: true })).toHaveCount(0);
-  for (const resource of ['overview', 'tasks', 'tasks/stats', 'journals', 'milestones'])
-    await expect
-      .poll(() =>
-        viewRequests.some(
-          (url) =>
-            url.pathname === '/api/v1/' + resource &&
-            url.searchParams.get('projectId') === otherProject.id &&
-            url.searchParams.get('scope') === 'all',
-        ),
-      )
-      .toBe(true);
-  await page.reload();
-  await expect(page.getByLabel('Home 프로젝트')).toHaveValue(otherProject.id);
-  await expect(page.locator('.project-row')).toContainText(otherProject.name);
-  await page.goto(origin + '/?projectId=' + selected.id);
-  await expect(page.getByLabel('Home 프로젝트')).toHaveValue(selected.id);
-  await expect(page.getByText('Dashboard task', { exact: true })).toBeVisible();
-  await expect(page.getByText('Dashboard journal', { exact: true })).toBeVisible();
-  await expect(page.getByText('Dashboard milestone', { exact: true })).toBeVisible();
-  await page.getByLabel('Home 프로젝트').selectOption('');
-  await expect(page.getByText('Dashboard task', { exact: true })).toBeVisible();
-  assert.deepEqual(await get(), saved);
-  assert.deepEqual(business(), snapshot);
-  page.off('request', observeView);
-  // Widget editor independently resolves an archived Project outside the first options page.
-  await page.getByRole('button', { name: '배치 편집', exact: true }).click();
-  await page.getByRole('button', { name: '프로젝트 개요 설정', exact: true }).click();
-  await expect(page.getByLabel('특정 프로젝트')).toHaveValue(selected.id);
-  await expect(
-    page.getByRole('option', { name: selected.name + ' (보관)', exact: true }),
-  ).toHaveCount(1);
-  await page.keyboard.press('Escape');
-  // Single frontend reset template must equal actual virtual GET; resetting only changes the draft.
-  await page.getByRole('button', { name: '기본 배치', exact: true }).click();
-  await page.getByRole('button', { name: '기본 배치 적용' }).click();
-  assert.deepEqual((await get()).widgets, saved.widgets);
-  const request = page.waitForRequest((r) => r.url() === origin + endpoint && r.method() === 'PUT');
-  await page.getByRole('button', { name: '배치 저장', exact: true }).click();
-  assert.deepEqual((await request).postDataJSON(), body(2, initial.widgets));
-  await expect(page.getByText('배치를 적용했습니다.')).toBeVisible();
-  saved = await get();
-  assert.equal(saved.revision, 3);
-  assert.deepEqual(business(), snapshot);
-  await page.locator('.tabs').getByRole('button', { name: 'Unity 개발', exact: true }).click();
-  await expect(page.getByText('Dashboard task', { exact: true })).toBeVisible();
-  await expect(page.getByText('Dashboard journal', { exact: true })).toBeVisible();
-  await expect(page.getByText('Dashboard milestone', { exact: true })).toBeVisible();
-  await page.locator('.tabs').getByRole('button', { name: '서버 · 웹 개발', exact: true }).click();
-  await expect(page.locator('.project-row')).toHaveCount(11);
-  await expect(page.getByText('Dashboard task', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Dashboard journal', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Dashboard milestone', { exact: true })).toHaveCount(0);
-  await page.reload();
-  await expect(page.locator('.project-row')).toHaveCount(11);
-  await page.locator('.tabs').getByRole('button', { name: '전체 프로젝트', exact: true }).click();
-  await expect(page.getByText('Dashboard task', { exact: true })).toBeVisible();
-  assert.deepEqual(await get(), saved);
-  // Real other-tab revision conflict preserves local removal and requires explicit reconciliation.
-  await page.getByRole('button', { name: '배치 편집', exact: true }).click();
-  await page.getByRole('button', { name: '바로가기 제거', exact: true }).click();
-  const other = await context.newPage();
-  await other.goto(origin);
-  await other.getByRole('button', { name: '배치 편집', exact: true }).click();
-  await other.getByRole('button', { name: '운영 제거', exact: true }).click();
-  await other.getByRole('button', { name: '배치 저장', exact: true }).click();
-  await expect(other.getByText('배치를 적용했습니다.')).toBeVisible();
-  await other.close();
-  await page.getByRole('button', { name: '배치 저장', exact: true }).click();
-  await expect(page.getByRole('region', { name: '배치 충돌 검토' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '내 초안 전체 다시 적용' })).toBeVisible();
-  page.once('dialog', (d) => d.accept());
-  await page.getByRole('button', { name: '내 초안 전체 다시 적용' }).click();
-  await page.getByRole('button', { name: '배치 저장', exact: true }).click();
-  await expect(page.getByText('배치를 적용했습니다.')).toBeVisible();
-  saved = await get();
-  assert.equal(saved.revision, 5);
-  assert(!saved.widgets.some((w) => w.type === 'links'));
-  assert(saved.widgets.some((w) => w.type === 'deploy'));
-  assert.deepEqual(business(), snapshot);
-  // Persisted empty and repeated equal saves are real revisions, never virtual defaults.
-  saved = await send('PUT', endpoint, body(saved.revision, []));
+  const board = page.locator('.widget').filter({ hasText: '작업 보드' });
+  await expect(board.getByText(task.title, { exact: true })).toBeVisible();
+  const boardWidget = current.widgets.find((item) => item.type === 'board');
+  assert(boardWidget);
+  const beforeTaskLayout = (await getHome()).layoutRevision;
+  await board.getByLabel(`${task.title} 상태`).selectOption('doing');
+  await expect(board.locator('.column-doing').getByText(task.title, { exact: true })).toBeVisible();
+  const changedTask = await send('GET', '/api/v2/tasks/' + task.id, undefined, 200);
+  assert.equal(changedTask.status, 'doing');
+  const refreshedBoard = (await getHome()).widgets.find((item) => item.id === boardWidget.id);
+  assert.equal(refreshedBoard.revision, boardWidget.revision);
+  assert.equal((await getHome()).layoutRevision, beforeTaskLayout);
+
+  const first = current.widgets[0];
+  const beforeLayout = current.layoutRevision;
+  const updated = await send(
+    'PUT',
+    '/api/v1/widgets/' + first.id,
+    {
+      revision: first.revision,
+      title: first.title + ' updated',
+      configVersion: first.configVersion,
+      config: { selection: first.config?.selection ?? { kind: 'all' } },
+    },
+    200,
+  );
+  assert.equal(updated.revision, first.revision + 1);
+  current = await getHome();
+  assert.equal(current.layoutRevision, beforeLayout);
+  assert.equal(
+    current.widgets.find((item) => item.id === first.id).title,
+    first.title + ' updated',
+  );
+
+  const reordered = [...current.placements].reverse();
+  const savedLayout = await send(
+    'PUT',
+    '/api/v3/dashboards/home',
+    layoutBody(
+      current.layoutRevision,
+      reordered.map(({ widgetId, size }) => ({
+        widgetId,
+        size: size === 'medium' ? 'wide' : 'medium',
+      })),
+    ),
+    200,
+  );
+  assert.equal(savedLayout.layoutRevision, current.layoutRevision + 1);
+  assert.deepEqual(
+    savedLayout.placements.map((item) => item.widgetId),
+    reordered.map((item) => item.widgetId),
+  );
+
+  const created = await send(
+    'POST',
+    '/api/v1/widgets',
+    {
+      type: 'overview',
+      title: 'Unplaced acceptance widget',
+      configVersion: 1,
+      config: { selection: { kind: 'all' } },
+    },
+    201,
+    'dashboard-widget-' + Date.now(),
+  );
+  assert(uuid.test(created.id));
+  current = await getHome();
+  const placed = await send(
+    'PUT',
+    '/api/v3/dashboards/home',
+    layoutBody(current.layoutRevision, [
+      ...current.placements.map(({ widgetId, size }) => ({ widgetId, size })),
+      { widgetId: created.id, size: 'small' },
+    ]),
+    200,
+  );
+  assert(placed.placements.some((item) => item.widgetId === created.id));
+  await send(
+    'DELETE',
+    '/api/v1/widgets/' + created.id + '?revision=' + created.revision,
+    undefined,
+    409,
+  );
+
+  current = await getHome();
+  const ownedIds = current.widgets.map((item) => item.id).filter((id) => id !== created.id);
+  const empty = await send(
+    'PUT',
+    '/api/v3/dashboards/home',
+    layoutBody(current.layoutRevision, []),
+    200,
+  );
+  assert.equal(empty.initialized, true);
+  assert.deepEqual(empty.placements, []);
+  await send(
+    'DELETE',
+    '/api/v1/widgets/' + created.id + '?revision=' + created.revision,
+    undefined,
+    200,
+  );
+  for (const id of ownedIds) {
+    const latest = await getWidget(id);
+    await send('DELETE', '/api/v1/widgets/' + id + '?revision=' + latest.revision, undefined, 200);
+  }
+
+  sql(
+    "delete from task_create_idempotency; delete from tasks where project_id='" +
+      project.id +
+      "'; delete from projects where id='" +
+      project.id +
+      "'",
+  );
+
   await page.reload();
   await expect(page.getByText('표시할 위젯이 없어요')).toBeVisible();
-  assert.equal((await get()).revision, 6);
-  saved = await send('PUT', endpoint, body(saved.revision, []));
-  assert.equal(saved.revision, 7);
-  saved = await send('PUT', endpoint, body(saved.revision, initial.widgets));
-  await page.reload();
-  await expect(page.locator('.widget')).toHaveCount(6);
-  await expect(page.locator('.project-row')).toHaveCount(20);
-  await page.getByRole('button', { name: '프로젝트 더 보기' }).click();
-  await expect(page.locator('.project-row')).toHaveCount(22);
-  for (const [name, width, height] of [
-    ['desktop', 1440, 1000],
-    ['mobile', 390, 844],
-    ['landscape', 844, 390],
+  for (const [name, viewport] of [
+    ['desktop', { width: 1440, height: 1000 }],
+    ['mobile', { width: 390, height: 844 }],
+    ['landscape', { width: 844, height: 390 }],
   ]) {
-    await page.setViewportSize({ width, height });
+    await page.setViewportSize(viewport);
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.screenshot({
-      path: path.join(output, 'dashboard-' + name + '.png'),
+      path: path.join(output, 'dashboard-v3-' + name + '.png'),
       fullPage: true,
     });
-    await page.getByRole('button', { name: '배치 편집', exact: true }).click();
-    await page.getByRole('button', { name: '프로젝트 개요 설정', exact: true }).click();
-    await page.screenshot({
-      path: path.join(output, 'dashboard-editor-' + name + '.png'),
-      fullPage: true,
-    });
-    await page.keyboard.press('Escape');
-    await page
-      .locator('.heading-actions')
-      .getByRole('button', { name: '취소', exact: true })
-      .click();
   }
-  assert.deepEqual(business(), snapshot);
-  assert.equal(sql(`select revision from workspaces where id='${alice.workspace.id}'`), '1');
-  assert.equal(archived.status, 'archived');
   fs.writeFileSync(
     path.join(output, 'dashboard-result.json'),
     JSON.stringify(
       {
         passed: true,
-        virtualDefault: initial,
-        firstSaveRace: [200, 409],
-        finalRevision: saved.revision,
-        archivedReference: selected.id,
-        defaultResetMatchesRuntime: true,
-        businessRowsUnchanged: true,
-        legacyStoragePreserved: true,
+        contract: 'Widget v1 + Dashboard v3',
+        initializedRevision: 1,
+        independentWidgetRevision: updated.revision,
+        layoutRevision: savedLayout.layoutRevision,
+        unplacedCreateAndPlacedDeleteConflict: true,
+        persistedEmptyLayout: true,
+        taskWidgetStatusPersisted: true,
+        overviewProjectRows: true,
         viewports: ['desktop', 'mobile', 'landscape'],
       },
       null,
       2,
     ),
-  );
-  // Only disposable harness-owned records, not the user's running backend/database.
-  await page.goto(origin + '/projects');
-  sql(
-    `delete from dashboards where workspace_id='${alice.workspace.id}'; delete from links where workspace_id='${alice.workspace.id}'; delete from milestones where workspace_id='${alice.workspace.id}'; delete from journals where workspace_id='${alice.workspace.id}'; delete from tasks where workspace_id='${alice.workspace.id}'; delete from projects where workspace_id='${alice.workspace.id}'`,
-  );
-  console.log(
-    'Dashboard real acceptance passed: defaults, first-save race, config, archived UUID, reset, two-tab review, empty, API widgets, pagination, responsive and database isolation.',
   );
 }

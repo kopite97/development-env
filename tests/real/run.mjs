@@ -32,17 +32,9 @@ const journalPhase = process.argv.find((arg) => arg.startsWith('--journals='))?.
 const milestonePhase = process.argv.find((arg) => arg.startsWith('--milestones='))?.split('=')[1];
 const linkPhase = process.argv.find((arg) => arg.startsWith('--links='))?.split('=')[1];
 const dashboardPhase = process.argv.find((arg) => arg.startsWith('--dashboard='))?.split('=')[1];
-if (
-  phase ||
-  categoryPhase ||
-  taskPhase ||
-  journalPhase ||
-  milestonePhase ||
-  linkPhase ||
-  dashboardPhase
-)
+if (phase || categoryPhase || taskPhase || journalPhase || milestonePhase || linkPhase)
   throw new Error(
-    'Historical feature phases target the retired v1 contract. Use --category-only for the coordinated v2 acceptance suite.',
+    'Historical feature phases target the retired v1 contract. Use --category-only or --dashboard for the coordinated acceptance suites.',
   );
 const nginx = process.argv.includes('--nginx');
 const origin = nginx ? 'http://127.0.0.1:4177' : 'http://127.0.0.1:4175';
@@ -187,7 +179,16 @@ try {
   } else {
     const frontend = launch(
       process.execPath,
-      ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '4175', '--strictPort'],
+      [
+        'node_modules/vite/bin/vite.js',
+        '--configLoader',
+        'runner',
+        '--host',
+        '127.0.0.1',
+        '--port',
+        '4175',
+        '--strictPort',
+      ],
       { cwd: root, env: { ...process.env, BACKEND_UPSTREAM: 'http://127.0.0.1:18080' } },
       'frontend',
     );
@@ -216,7 +217,7 @@ try {
     const url = new URL(request.url());
     if (
       url.pathname.startsWith('/api/') &&
-      !/^\/api\/(?:v1\/(?:me$|auth\/|project-categories(?:\/|$))|v2\/(?:projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|dashboards\/home$|overview$))/.test(
+      !/^\/api\/(?:v1\/(?:me$|auth\/|project-categories(?:\/|$)|widget-types$|widgets(?:\/|$))|v2\/(?:projects(?:\/|$)|tasks(?:\/|$)|journals(?:\/|$)|milestones(?:\/|$)|links(?:\/|$)|overview$)|v3\/dashboards\/home(?:\/|$))/.test(
         url.pathname,
       )
     )
@@ -230,12 +231,23 @@ try {
   }
   const loginDestination = categoryOnlyPhase
     ? '/projects?category=uncategorized&q=hello'
-    : '/projects/example?scope=all&q=hello';
+    : dashboardPhase
+      ? '/projects?category=all&q=hello'
+      : '/projects/example?scope=all&q=hello';
   await page.goto(origin + loginDestination);
-  assert.equal(await page.title(), 'Devspace — 나만의 개발 작업실');
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  assert.equal(await page.title(), 'devspace. · 나만의 개발 작업실');
+  await page.getByRole('button', { name: 'Google로 계속하기' }).click();
   await page.getByRole('link', { name: 'alice', exact: true }).click();
-  await page.waitForURL(origin + loginDestination);
+  try {
+    await page.waitForURL(origin + loginDestination);
+  } catch (error) {
+    console.error(
+      'Authentication return navigation did not settle:',
+      page.url(),
+      await page.title(),
+    );
+    throw error;
+  }
   if (categoryOnlyPhase)
     await expect(page.getByLabel('개발 분야 필터', { exact: true })).toHaveValue('uncategorized');
   const me = await context.request.get(origin + '/api/v1/me');
@@ -300,7 +312,7 @@ try {
   assert.equal(sql('select count(*) from users'), '1');
   assert.equal(sql('select count(*) from workspaces'), '1');
   const counts = sql(
-    'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)+(select count(*) from dashboards)',
+    'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)',
   );
   assert.equal(counts, '0');
   await page.waitForLoadState('networkidle');
@@ -342,7 +354,7 @@ try {
     await validateMilestones({ page, context, origin, sql, alice, output, phase: milestonePhase });
   if (dashboardPhase) await validateDashboard({ page, context, origin, sql, alice, output });
   const businessRowsBeforeAuth = sql(
-    'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)+(select count(*) from dashboards)',
+    'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)',
   );
   const csrf = await context.request.get(origin + '/api/v1/auth/csrf');
   assert.equal(csrf.status(), 200);
@@ -370,7 +382,7 @@ try {
   assert.equal((await context.request.post(origin + '/api/v1/auth/logout')).status(), 204);
   assert.equal(excluded.length, 0);
   await page.goto(origin);
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await page.getByRole('button', { name: 'Google로 계속하기' }).click();
   await page.getByRole('link', { name: 'bob', exact: true }).click();
   await expect(page.locator('.authenticated-workspace')).toHaveAttribute(
     'aria-label',
@@ -400,9 +412,9 @@ try {
     page.getByRole('button', { name: 'Log out', exact: true }).click(),
   ]);
   assert.equal(uiLogoutResponse.status(), 204);
-  await expect(page.getByRole('heading', { name: 'Sign in to your workspace' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '로그인하여 계속하세요' })).toBeVisible();
   await page.goto(origin);
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await page.getByRole('button', { name: 'Google로 계속하기' }).click();
   const disabledResponse = page.waitForResponse((response) =>
     response.url().startsWith(origin + '/api/v1/auth/callback/google'),
   );
@@ -412,9 +424,11 @@ try {
   assert.equal((await disabled.json()).code, 'ACCOUNT_DISABLED');
   assert.equal((await context.request.get(origin + '/api/v1/me')).status(), 401);
   await page.goto(origin);
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await page.getByRole('button', { name: 'Google로 계속하기' }).click();
   await page.getByRole('link', { name: 'cancel', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText('Google sign-in failed. Please try again.');
+  await expect(page.getByRole('alert')).toHaveText(
+    'Google 로그인에 실패했습니다. 다시 시도해 주세요.',
+  );
   assert(!page.url().includes('authError'));
   assert.deepEqual(
     await page.evaluate(() => Object.fromEntries(Object.entries(localStorage))),
@@ -422,7 +436,7 @@ try {
   );
   assert.equal(
     sql(
-      'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)+(select count(*) from dashboards)',
+      'select (select count(*) from projects)+(select count(*) from tasks)+(select count(*) from journals)+(select count(*) from milestones)+(select count(*) from links)',
     ),
     businessRowsBeforeAuth,
   );

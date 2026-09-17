@@ -11,23 +11,34 @@ export type QueryState<T> = {
   error?: unknown;
   stale: boolean;
 };
+export type QueryFetcher<T> = (signal: AbortSignal) => Promise<T>;
+export type QueryLoadOptions = {
+  force?: boolean;
+  reason?: 'initial' | 'expired' | 'forced' | 'page';
+};
 export class Query<T> {
   private state: QueryState<T> = { status: 'idle', stale: true };
   private listeners = new Set<() => void>();
   private controller?: AbortController;
   private sequence = 0;
   private work?: Promise<void>;
-  constructor(private fetcher: (signal: AbortSignal) => Promise<T>) {}
+  constructor(protected readonly fetcher: QueryFetcher<T>) {}
   getSnapshot = () => this.state;
   get observed() {
     return this.listeners.size > 0;
   }
-  subscribe = (listener: () => void) => {
+  protected addListener(listener: () => void) {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
-      if (!this.listeners.size && this.work) this.invalidate();
+      if (!this.listeners.size && this.work) this.onUnobserved();
     };
+  }
+  protected onUnobserved() {
+    this.invalidate();
+  }
+  subscribe = (listener: () => void) => {
+    return this.addListener(listener);
   };
   private publish(state: QueryState<T>) {
     this.state = state;
@@ -47,33 +58,38 @@ export class Query<T> {
   seed(data: T) {
     this.publish({ status: 'idle', data, stale: true });
   }
-  load = (fetcher = this.fetcher): Promise<void> => {
+  load(fetcher?: QueryFetcher<T>, _options?: QueryLoadOptions): Promise<void> {
     if (this.work) return this.work;
+    const source = fetcher ?? this.fetcher;
     const sequence = ++this.sequence;
     const controller = new AbortController();
     observers.set(controller.signal, this);
     this.controller = controller;
     this.publish({ ...this.state, status: 'loading', error: undefined });
     const work = Promise.resolve()
-      .then(() => fetcher(controller.signal))
+      .then(() => source(controller.signal))
       .then((data) => {
-        if (sequence === this.sequence && !controller.signal.aborted)
+        if (sequence === this.sequence && !controller.signal.aborted) {
+          if (this.work === work) this.work = undefined;
           this.publish({ status: 'ready', data, stale: false });
+        }
       })
       .catch((error: unknown) => {
         if (
           sequence === this.sequence &&
           !controller.signal.aborted &&
           !(error instanceof CancelledError)
-        )
+        ) {
+          if (this.work === work) this.work = undefined;
           this.publish({ ...this.state, status: 'error', error, stale: true });
+        }
       })
       .finally(() => {
         if (this.work === work) this.work = undefined;
       });
     this.work = work;
     return work;
-  };
+  }
 }
 export function useQuery<T>(query: Query<T>) {
   const state = useSyncExternalStore(query.subscribe, query.getSnapshot);

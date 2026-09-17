@@ -27,6 +27,7 @@ export class LinkStore {
   private lifetime = new AbortController();
   private pending = false;
   private watermark = 0;
+  onInvalidate = () => {};
   constructor(readonly transport: PrivateTransport) {
     transport.lifecycle.signal.addEventListener('abort', () => this.dispose(), { once: true });
   }
@@ -103,6 +104,7 @@ export class LinkStore {
       }
     }
     for (const [id, q] of this.details) q.invalidate(id === deletedId);
+    this.onInvalidate();
   }
   async mutate(
     operation: 'create' | 'patch' | 'delete' | 'order',

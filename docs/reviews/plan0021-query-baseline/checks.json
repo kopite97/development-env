@@ -1,0 +1,63 @@
+[
+  {
+    "name": "creationReplay",
+    "status": 201,
+    "identicalBody": true,
+    "revisionHeaderOmitted": true
+  },
+  {
+    "name": "patch",
+    "status": 200,
+    "revision": "63",
+    "code": null
+  },
+  {
+    "name": "conflict",
+    "status": 409,
+    "revision": null,
+    "code": "REVISION_CONFLICT"
+  },
+  {
+    "name": "invalidCursor",
+    "status": 400,
+    "revision": null,
+    "code": "INVALID_CURSOR"
+  },
+  {
+    "name": "unauthorized",
+    "status": 401,
+    "revision": null,
+    "code": null
+  },
+  {
+    "name": "csrfMissing",
+    "status": 403,
+    "revision": null,
+    "code": "CSRF_INVALID"
+  },
+  {
+    "name": "pagination",
+    "first": 20,
+    "next": 5,
+    "revision": "63",
+    "cacheControl": "no-store"
+  },
+  {
+    "name": "overviewAndStats",
+    "overview": {
+      "todo": 10,
+      "doing": 10,
+      "done": 10,
+      "total": 30
+    },
+    "stats": {
+      "counts": {
+        "todo": 10,
+        "doing": 10,
+        "done": 10
+      },
+      "total": 30,
+      "asOf": "2026-09-16T08:12:59.799434200Z"
+    }
+  }
+]

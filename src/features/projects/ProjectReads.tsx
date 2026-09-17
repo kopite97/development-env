@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
 import { HttpError } from '../../shared/http/client';
 import { useQuery } from '../../shared/http/query';
@@ -26,7 +26,29 @@ export function ProjectListView({
 }) {
   const query = store.list(filter),
     state = useQuery(query);
-  useEffect(() => () => query.invalidate(true), [query]);
+  const filterKey = store.filterKey(filter);
+  useLayoutEffect(() => {
+    if (state.status !== 'ready' || state.stale) return;
+    const position = store.scrollPosition(filter);
+    if (position === undefined) return;
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo(0, position);
+      store.clearScrollPosition(filter);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [filterKey, state.status, state.stale, store]);
+  useEffect(() => {
+    const remember = () => store.rememberScroll(filter, window.scrollY);
+    const handleScroll = () => {
+      if (window.scrollY > 0) remember();
+      else store.clearScrollPosition(filter);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      if (window.scrollY > 0) remember();
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [filterKey, store]);
   return (
     <section aria-label="프로젝트 목록">
       <ProjectOverview
@@ -90,7 +112,6 @@ export function ProjectDetailView(props: DetailProps) {
 function VerifiedDetail({ store, id, children, actions, onBack, category }: DetailProps) {
   const query = store.detail(serverProjectId(id)),
     state = useQuery(query);
-  useEffect(() => () => query.invalidate(), [query]);
   const missing = state.error instanceof HttpError && state.error.status === 404;
   const project = missing ? undefined : state.data;
   const verified = state.status === 'ready' && !state.stale;
